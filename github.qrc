@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/">
+        <file alias="github">resources/github.svg</file>
+    </qresource>
+</RCC>
