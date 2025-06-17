@@ -4,6 +4,7 @@
 #include "ui_configwidget.h"
 #include <QWidget>
 class Plugin;
+namespace albert::util { class OAuth2; }
 
 class ConfigWidget final : public QWidget
 {
@@ -11,15 +12,13 @@ class ConfigWidget final : public QWidget
 
 public:
 
-    explicit ConfigWidget(Plugin &plugin);
+    explicit ConfigWidget(Plugin &, albert::util::OAuth2 &);
+
+    Ui::ConfigWidget ui;
+    Plugin &plugin_;
 
 private:
 
-    void onButton_new();
-    void onButton_remove();
-    void onButton_restoreDefaults();
-
-    Ui::ConfigWidget ui;
-    Plugin &plugin;
+    void updateViewHeight();
 
 };

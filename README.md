@@ -2,10 +2,17 @@
 
 ## Features
 
-- The empty query shows notifications.
-- Prefix a query with `i` to search issues and pull requests.
-- Prefix a query with `u` to search users and organizations.
-- Prefix a query with `r` to search repositories.
+- Provides query handlers for GitHub user, repository and issue search.
+- Triggered queries perform a GitHub search.
+- Global queries return customizable saved searches.
+- The root trigger queryhandler returns the saved searches of the dedicated search handlers.
+- Authentication allows for private access and higher rate limits.
+
+## Note
+
+GitHub has a complex [rate limiting system](https://docs.github.com/rest/using-the-rest-api/rate-limits-for-the-rest-api?apiVersion=2022-11-28). 
+Limits of unauthenticated API queries are hit quickly. 
+Use authentication to avoid getting limited (see the section below).
 
 ## Setup
 
@@ -19,5 +26,5 @@
 
 ## Technical notes
 
-- Uses the [GitHub Web API](https://docs.github.com/en/rest).
+- Uses the [GitHub Web API](https://docs.github.com/en/rest) (API version: v2022-11-28).
 - See the used endpoints and scopes in `github.h`.

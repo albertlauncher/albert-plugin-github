@@ -1,142 +1,289 @@
 // Copyright (c) 2025-2025 Manuel Schneider
 
 #include "configwidget.h"
+#include "handlers.h"
 #include "plugin.h"
-#include <QStyle>
-#include <albert/albert.h>
-#include <albert/messagebox.h>
+#include <QMouseEvent>
+#include <QStyledItemDelegate>
 #include <albert/oauth.h>
 #include <albert/oauthconfigwidget.h>
+using namespace Qt::StringLiterals;
+using namespace albert::util;
 using namespace albert;
 using namespace std;
-using namespace util;
 
-
-class SavedSearchesModel final : public QAbstractTableModel
+class RemoveButtonDelegate : public QStyledItemDelegate
 {
-    Plugin &plugin_;
+    Q_OBJECT
 
 public:
-    SavedSearchesModel(Plugin &plugin, QObject *parent):
-        QAbstractTableModel(parent),
-        plugin_(plugin)
+    explicit RemoveButtonDelegate(QObject *parent = nullptr) : QStyledItemDelegate(parent) {}
+
+    QRect decorationRect(const QStyleOptionViewItem &option) const
     {
-        connect(&plugin, &Plugin::savedSearchesChanged, this, [this](){
-            beginResetModel();
-            endResetModel();
-        });
+        QStyleOptionViewItem opt = option;
+        initStyleOption(&opt, opt.index); // populates icon, etc.
+
+        QStyle *style = opt.widget ? opt.widget->style() : QApplication::style();
+        return style->subElementRect(QStyle::SE_ItemViewItemDecoration, &opt, opt.widget);
     }
 
-    int rowCount(const QModelIndex&) const override { return plugin_.savedSearches().size(); }
-
-    int columnCount(const QModelIndex&) const override { return 2; }
-
-    Qt::ItemFlags flags(const QModelIndex&) const override
-    { return Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsEditable; }
-
-    QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override
+    bool editorEvent(QEvent *event, QAbstractItemModel *model,
+                     const QStyleOptionViewItem &option,
+                     const QModelIndex &index) override
     {
-        if (orientation == Qt::Horizontal && role == Qt::DisplayRole)
+        if (event->type() == QEvent::MouseButtonRelease &&
+            index.column() == 0 && index.parent().isValid())
         {
-            if (section == 0)
-                return ConfigWidget::tr("Name");
-            else if (section == 1)
-                return ConfigWidget::tr("Query");
+            auto *me = static_cast<QMouseEvent *>(event);
+            QRect iconRect = decorationRect(option);
+
+            if (iconRect.contains(me->pos()))
+            {
+                emit removeRequested(index);
+                return true;
+            }
         }
+        return QStyledItemDelegate::editorEvent(event, model, option, index);
+    }
+
+signals:
+    void removeRequested(const QModelIndex &index);
+
+};
+
+class SavedSearchItemModel : public QAbstractItemModel
+{
+    const vector<unique_ptr<GithubSearchHandler>> &handlers_;
+    QIcon remove_icon = qApp->style()->standardIcon(QStyle::SP_LineEditClearButton);
+
+public:
+
+    SavedSearchItemModel(const vector<unique_ptr<GithubSearchHandler>> &handlers,
+                         QObject *parent = nullptr)
+        : QAbstractItemModel(parent), handlers_(handlers)
+    {
+    }
+
+    QModelIndex index(int row, int column, const QModelIndex &parent = {}) const override
+    {
+        if (!hasIndex(row, column, parent))
+            return {};
+
+        if (!parent.isValid())
+            return createIndex(row, column, static_cast<quintptr>(-1));
+
+        return createIndex(row, column, parent.row());
+    }
+
+    QModelIndex parent(const QModelIndex &index) const override
+    {
+        if (!index.isValid() || index.internalId() == static_cast<quintptr>(-1))
+            return {};
+        return createIndex(static_cast<int>(index.internalId()), 0, static_cast<quintptr>(-1));
+    }
+
+    int rowCount(const QModelIndex &parent = {}) const override
+    {
+        if (!parent.isValid())
+            return handlers_.size();
+        if (parent.internalId() == static_cast<quintptr>(-1)) {
+            int handler_row = parent.row();
+            if (handler_row >= 0 && handler_row < static_cast<int>(handlers_.size()))
+                return static_cast<int>(handlers_[handler_row]->savedSearches().size() + 1); // virt
+        }
+        return 0;
+    }
+
+    int columnCount(const QModelIndex &) const override { return 2; }
+
+    QVariant headerData(int section, Qt::Orientation, int role) const override
+    {
+        if (role == Qt::DisplayRole)
+            return section == 0 ? tr("Title") : tr("Query");
         return {};
     }
 
-    QVariant data(const QModelIndex & index, int role = Qt::DisplayRole) const override
+    Qt::ItemFlags flags(const QModelIndex &index) const override
     {
-        if (!index.isValid() || index.row() >= static_cast<int>(plugin_.savedSearches().size()))
-            return QVariant();
+        if (!index.isValid())
+            return Qt::NoItemFlags;
+        else if (index.parent().isValid())
+            return Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsEditable;
+        else
+            return Qt::ItemIsEnabled;
+    }
 
-        const auto &ss = plugin_.savedSearches()[static_cast<ulong>(index.row())];
+    QVariant data(const QModelIndex &index, int role) const override
+    {
+        if (!index.isValid())
+            return {};
 
-        switch (role) {
-        case Qt::DisplayRole:
-        case Qt::EditRole:
+        else if (auto parent = index.parent();
+                 !parent.isValid())
         {
-            if (index.column() == 0)
-                return ss.name;
-            else if (index.column() == 1)
-                return ss.query;
+            if (role == Qt::DisplayRole)
+            {
+                const auto &h = handlers_.at(index.row());
+                return index.column() == 0 ? h->name() : QString{};
+            }
+            else if (role == Qt::FontRole)
+            {
+                QFont font;
+                font.setItalic(true);
+                return font;
+            }
         }
+        else
+        {
+            if (index.row() == (int)handlers_.at(parent.row())->savedSearches().size())  // vrow
+            {
+                if (role == Qt::DisplayRole)
+                    return index.column() == 0 ? tr("New search") : u"…"_s;
+                else if (role == Qt::ForegroundRole)
+                    return qApp->palette().placeholderText();
+            }
+            else
+            {
+                if (role == Qt::DisplayRole || role == Qt::EditRole)
+                {
+                    const auto ss = handlers_.at(parent.row())->savedSearches().at(index.row());
+                    return index.column() == 0 ? ss.first : ss.second;
+                }
+                else if (role == Qt::DecorationRole && index.column() == 0)
+                {
+                    return remove_icon;
+                }
+            }
         }
         return {};
     }
 
     bool setData(const QModelIndex &index, const QVariant &value, int role) override
     {
-        if (!index.isValid())
+        if (!index.isValid() || role != Qt::EditRole || value.toString().isEmpty())
             return false;
 
-        if (role == Qt::EditRole)
+        else if (auto parent = index.parent();
+                 parent.isValid())
         {
-            auto ss = plugin_.savedSearches();
+            if (index.row() == (int)handlers_.at(parent.row())->savedSearches().size())  // vrow
+                insertRows(index.row(), 1, parent);
 
+            const auto &h = handlers_.at(parent.row());
+            auto saved_searches = h->savedSearches();
             if (index.column() == 0)
-            {
-                ss[index.row()].name = value.toString();
-                plugin_.setSavedSearches(ss);
-                return true;
-            }
-            else if (index.column() == 1)
-            {
-                ss[index.row()].query = value.toString();
-                plugin_.setSavedSearches(ss);
-                return true;
-            }
+                saved_searches[index.row()].first = value.toString();
+            else
+                saved_searches[index.row()].second = value.toString();
+            h->setSavedSearches(saved_searches);
+            emit dataChanged(index, index);
+            return true;
+        }
+        return false;
+    }
+
+    bool insertRows(int row, int count, const QModelIndex &parent = {}) override
+    {
+        if (parent.isValid())
+        {
+            const auto &h = handlers_.at(parent.row());
+            auto saved_searches = h->savedSearches();
+            beginInsertRows(parent, row, row + count - 1);
+            for (int i = 0; i < count; ++i)
+                saved_searches.emplace_back(tr("New search"), QString{});
+            h->setSavedSearches(saved_searches);
+            endInsertRows();
+            return true;
+        }
+        return false;
+    }
+
+    bool removeRows(int row, int count, const QModelIndex &parent = {}) override
+    {
+        if (parent.isValid())
+        {
+            const auto &h = handlers_.at(parent.row());
+            auto saved_searches = h->savedSearches();
+            beginRemoveRows(parent, row, row + count - 1);
+            saved_searches.erase(saved_searches.begin() + row,
+                                 saved_searches.begin() + row + count);
+            h->setSavedSearches(saved_searches);
+            endRemoveRows();
+            return true;
         }
         return false;
     }
 };
 
-ConfigWidget::ConfigWidget(Plugin &p):
-    plugin(p)
+
+ConfigWidget::ConfigWidget(Plugin &p, OAuth2 &oauth) :
+    plugin_(p)
 {
     ui.setupUi(this);
 
-    auto oaw = new OAuthConfigWidget(plugin.oauth);
+    auto oaw = new OAuthConfigWidget(oauth);
     ui.groupBox_oauth->layout()->addWidget(oaw);
 
-    ui.tableView_searches->setModel(new SavedSearchesModel(plugin, ui.tableView_searches));
+    const auto docs = u"https://docs.github.com/search-github/searching-on-github/"_s;
+    const auto docs_users = docs + u"searching-users"_s;
+    const auto docs_repos = docs + u"searching-for-repositories"_s;
+    const auto docs_issues = docs + u"searching-issues-and-pull-requests"_s;
 
-    ui.tableView_searches->verticalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);  // requires a model!
-    ui.tableView_searches->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);  // requires a model!
-    ui.tableView_searches->horizontalHeader()->setStretchLastSection(true);
+    ui.label_seach_info->setText(tr("See the GitHub [user](%1), [repo](%2) "
+                                    "and [issue](%3) search documentation.")
+                                     .arg(docs_users, docs_repos, docs_issues));
+    ui.label_seach_info->setOpenExternalLinks(true);
+    ui.label_seach_info->setWordWrap(true);
+    ui.label_seach_info->setTextFormat(Qt::MarkdownText);
 
-    connect(ui.pushButton_new, &QPushButton::clicked,
-            this, &ConfigWidget::onButton_new);
+    auto model = new SavedSearchItemModel(plugin_.search_handlers_, this);
+    ui.treeView->setModel(model);
 
-    connect(ui.pushButton_remove, &QPushButton::clicked,
-            this, &ConfigWidget::onButton_remove);
 
-    connect(ui.pushButton_restoreDefaults, &QPushButton::clicked,
-            this, &ConfigWidget::onButton_restoreDefaults);
+    auto *delegate = new RemoveButtonDelegate(ui.treeView);
+    ui.treeView->setItemDelegate(delegate);
+
+    connect(delegate, &RemoveButtonDelegate::removeRequested, this, [model](const QModelIndex &index) {
+        model->removeRow(index.row(), index.parent());
+    });
+
+    ui.treeView->expandAll();
+
+    ui.treeView->resizeColumnToContents(0);
+    connect(ui.treeView->model(), &QAbstractItemModel::dataChanged,
+            this, [tv=ui.treeView] { tv->resizeColumnToContents(0); });
+
+    updateViewHeight();
+    connect(ui.treeView->model(), &QAbstractItemModel::rowsInserted,
+            this, &ConfigWidget::updateViewHeight);
+    connect(ui.treeView->model(), &QAbstractItemModel::rowsRemoved,
+            this, &ConfigWidget::updateViewHeight);
 }
 
-void ConfigWidget::onButton_new()
+void ConfigWidget::updateViewHeight()
 {
-    auto ss = plugin.savedSearches();
-    ss.push_back({QStringLiteral("New Search"), {}});
-    plugin.setSavedSearches(ss);
+    function<int(const QAbstractItemView &v, const QModelIndex& parent)> computeHeight =
+        [&](const QAbstractItemView &v, const QModelIndex& parent)
+    {
+        auto height = 0;
+        int rows = v.model()->rowCount(parent);
+        for (int i = 0; i < rows; ++i)
+        {
+            QModelIndex index = v.model()->index(i, 0, parent);
+            height += v.sizeHintForIndex(index).height();
+            if (v.model()->hasChildren(index))
+                height += computeHeight(v, index);
+        }
+        return height;
+    };
+
+    auto view_height = computeHeight(*ui.treeView, {})
+                       + ui.treeView->header()->height()
+                       + ui.treeView->contentsMargins().bottom()
+                       + ui.treeView->contentsMargins().top();
+    ui.treeView->setMinimumHeight(view_height);
+    ui.treeView->setMaximumHeight(view_height);
 }
 
-void ConfigWidget::onButton_remove()
-{
-    auto index = ui.tableView_searches->currentIndex();
-    if (!index.isValid())
-        return;
-
-    auto ss = plugin.savedSearches();
-    ss.erase(ss.begin() + index.row());
-    plugin.setSavedSearches(ss);
-}
-
-void ConfigWidget::onButton_restoreDefaults()
-{
-    if (question(tr("Do you really want to restore the default saved searches?"))
-        == QMessageBox::Yes)
-        plugin.restoreDefaultSavedSearches();
-}
+#include "configwidget.moc"

@@ -1,6 +1,7 @@
 // Copyright (c) 2025-2025 Manuel Schneider
 
 #include "configwidget.h"
+#include "handlers.h"
 #include "items.h"
 #include "plugin.h"
 #include <QCoreApplication>
@@ -13,11 +14,8 @@
 #include <QSettings>
 #include <QThread>
 #include <albert/albert.h>
-#include <albert/desktoputil.h>
-#include <albert/filedownloader.h>
 #include <albert/logging.h>
 #include <albert/matcher.h>
-#include <albert/networkutil.h>
 #include <albert/standarditem.h>
 #include <albert/systemutil.h>
 #include <mutex>
@@ -25,374 +23,227 @@ ALBERT_LOGGING_CATEGORY("github")
 using namespace Qt::StringLiterals;
 using namespace albert::util;
 using namespace albert;
+using namespace github;
 using namespace std;
 
-const QStringList Plugin::default_icon_urls{u":github"_s};
-static const QStringList error_icon_urls{u"comp:?src1=%3Agithub&src2=qsp%3ASP_MessageBoxWarning"_s};
-
-static const auto avatars           = "avatars";
-static const auto ck_saved_searches = u"saved_searches"_s;
-static const auto kck_secrets       = u"secrets"_s;
-static const auto oauth_auth_url    = u"https://github.com/login/oauth/authorize"_s;
-static const auto oauth_scope       = u"notifications,read:org,read:user"_s;
-static const auto oauth_token_url   = u"https://github.com/login/oauth/access_token"_s;
+static const auto kck_secrets = u"secrets"_s;
+static const auto ck_saved_searches = "saved_searches"_L1;
 
 Plugin::Plugin()
 {
-    tryCreateDirectory(cacheLocation() / avatars);
+    search_handlers_.emplace_back(make_unique<UserSearchHandler>(api));
+    search_handlers_.emplace_back(make_unique<RepoSearchHandler>(api));
+    search_handlers_.emplace_back(make_unique<IssueSearchHandler>(api));
 
-    connect(&oauth, &OAuth2::clientIdChanged, this, &Plugin::writeSecrets);
-    connect(&oauth, &OAuth2::clientSecretChanged, this, &Plugin::writeSecrets);
-    connect(&oauth, &OAuth2::tokensChanged, this, [this]{
-        writeSecrets();
-        api.setBearerToken(oauth.accessToken());
-        if (oauth.error().isEmpty())
-            INFO << "Tokens updated.";
-        else
-            WARN << oauth.error();
-    });
+    // Read saved searches
 
-    connect(&oauth, &OAuth2::tokensChanged,
-            this, &Plugin::authorizedInitialization);
+    if (auto s = settings();
+        s->childGroups().contains(ck_saved_searches))
+    {
+        s->beginGroup(ck_saved_searches);
+        for (const auto &handler : search_handlers_)
+        {
+            vector<pair<QString, QString>> saved_searches;
 
-    oauth.setAuthUrl(oauth_auth_url);
-    oauth.setScope(oauth_scope);
-    oauth.setTokenUrl(oauth_token_url);
-    oauth.setRedirectUri(u"%1://%2/"_s.arg(qApp->applicationName(), id()));
-    oauth.setPkceEnabled(false);
+            auto size = s->beginReadArray(handler->id().section(u'.', 1)); // drop "github."
+            for (int i = 0; i < size; ++i)
+            {
+                s->setArrayIndex(i);
+                saved_searches.emplace_back(s->value("title").toString(),
+                                            s->value("query").toString());
+            }
+            s->endArray();
 
-    readSecrets();
-
-    auto s = settings();
-    auto size = s->beginReadArray(ck_saved_searches);
-    for (int i = 0; i < size; ++i) {
-        s->setArrayIndex(i);
-        saved_searches.emplace_back(s->value("title").toString(), s->value("query").toString());
+            handler->setSavedSearches(saved_searches);
+        }
     }
-    s->endArray();
+    else
+    {
+        for (const auto &handler : search_handlers_)
+            handler->setSavedSearches(handler->defaultSearches());
+    }
+
+    // Write saved searches on changes
+
+    const auto writeSavedSearches = [this]{
+        auto s = settings();
+        s->beginGroup(ck_saved_searches);
+        for (const auto &handler : search_handlers_)
+        {
+            const auto saved_searches = handler->savedSearches();
+
+            s->beginWriteArray(handler->id().section(u'.', 1));  // drop "github."
+            CRIT << s->fileName() << s->group() <<handler->id();
+            for (size_t i = 0; i < saved_searches.size(); ++i)
+            {
+                s->setArrayIndex(i);
+                s->setValue("title", saved_searches.at(i).first),
+                s->setValue("query", saved_searches.at(i).second);
+            }
+            s->endArray();
+        }
+    };
+
+    for (const auto &handler : search_handlers_)
+        connect(handler.get(), &GithubSearchHandler::savedSearchesChanged,
+                this, writeSavedSearches);
+
+    // Read the secrets
+
+    if (auto secrets = readKeychain(kck_secrets).split(QChar::Tabulation);
+        secrets.size() == 3)
+    {
+        api.oauth.setClientId(secrets[0]);
+        api.oauth.setClientSecret(secrets[1]);
+        api.oauth.setTokens(secrets[2]);
+    }
+
+    // Write the secrets on changes
+
+    const auto writeAuthConfig = [this]{
+        writeKeychain(kck_secrets,
+                      QStringList{
+                          api.oauth.clientId(),
+                          api.oauth.clientSecret(),
+                          api.oauth.accessToken()
+                      }.join(QChar::Tabulation));
+    };
+
+    connect(&api.oauth, &OAuth2::clientIdChanged, this, writeAuthConfig);
+    connect(&api.oauth, &OAuth2::clientSecretChanged, this, writeAuthConfig);
+    connect(&api.oauth, &OAuth2::tokensChanged, this, writeAuthConfig);
 }
 
 Plugin::~Plugin() = default;
 
-void Plugin::readSecrets()
+vector<Extension*> Plugin::extensions()
 {
-    if (auto secrets = readKeychain(kck_secrets).split(QChar::Tabulation);
-        secrets.size() == 3)
-    {
-        oauth.setClientId(secrets[0]);
-        oauth.setClientSecret(secrets[1]);
-        oauth.setTokens(secrets[2]);
-    }
+    vector<Extension*> extensions{this};
+    for (const auto &handler : search_handlers_)
+        extensions.push_back(handler.get());
+    return extensions;
 }
 
-void Plugin::writeSecrets() const
+QWidget *Plugin::buildConfigWidget()
 {
-    writeKeychain(kck_secrets,
-                  QStringList{
-                      oauth.clientId(),
-                      oauth.clientSecret(),
-                      oauth.accessToken()
-                  }.join(QChar::Tabulation));
-}
-
-
-void Plugin::authorizedInitialization()
-{
-    if (const auto var = api.parseJson(await(api.user()));
-        holds_alternative<QString>(var))
-        WARN << get<QString>(var);
-    else
-    {
-        const auto obj = get<QJsonDocument>(var).object();
-        user_name  = obj["name"_L1].toString();
-        user_login = obj["login"_L1].toString();
-        user_bio   = obj["bio"_L1].toString();
-        user_url   = u"https://github.com/%1"_s.arg(user_login);
-
-        if (!saved_searches.empty())
-            restoreDefaultSavedSearches();
-
-        downloadAvatar(user_login, obj["avatar_url"_L1].toString());
-
-        disconnect(&oauth, &OAuth2::tokensChanged, this, &Plugin::authorizedInitialization);
-    }
+    return new ConfigWidget(*this, api.oauth);
 }
 
 void Plugin::handle(const QUrl &url)
 {
-    oauth.handleCallback(url);
+    api.oauth.handleCallback(url);
     showSettings(id());
 }
 
-QString Plugin::makeAvatarPath(const QString owner) const
-{ return QDir(cacheLocation() / avatars).filePath(owner) + u".png"_s; }
-
-QString Plugin::makeMaskedIconUrl(const QString path) const
-{ return u"mask:?src=%1&radius=2"_s.arg(QString::fromUtf8(QUrl::toPercentEncoding(path))); }
-
-variant<FileDownloader *, QString> Plugin::downloadAvatar(const QString &name, const QUrl &url)
+void Plugin::handleTriggerQuery(Query &q)
 {
-    lock_guard lock(downloads_mutex);
+    vector<RankItem> results;
 
-    // If currently downloading
-    if (const auto it = downloads.find(name); it != downloads.cend())
-        return it->second;
-
-    // Exists on disk
-    else if (const auto file_path = makeAvatarPath(name);
-        QFile::exists(file_path))
-        return file_path;
-
-    // Else start download
-    else
+    for (const auto &handler : search_handlers_)
     {
-        auto downloader = downloads.emplace(name, new FileDownloader(url, file_path, this))
-                              .first->second; // always successful
-        downloader->moveToThread(thread());
-
-        auto on_finish = [this, name](bool success, const QString &path_or_error)
-        {
-            if (success)
-            {
-                lock_guard lock_(downloads_mutex);
-                downloads.at(name)->deleteLater();
-                downloads.erase(name);
-            }
-            else
-                WARN << path_or_error;
-        };
-
-        connect(downloader, &FileDownloader::finished, this, on_finish, Qt::QueuedConnection);
-
-        downloader->start();
-
-        return downloader;
+        auto ri = handler->handleGlobalQuery(q);
+        handler->applyUsageScore(&ri);
+        ranges::move(ri, std::back_inserter(results));
     }
+
+    ranges::sort(results, greater());
+
+    auto v = views::transform(results, &RankItem::item);
+    q.add({v.begin(), v.end()});
 }
 
-QWidget *Plugin::buildConfigWidget() { return new ConfigWidget(*this); }
+// void Plugin::readSavedSearches()
+// {
+    // if (QFile file(savedSearchesFilePath());
+    //     !file.exists())
+    //     return;
 
-static const bool &debounce(const bool &valid)
-{
-    static mutex m;
-    static long long block_until = 0;
-    auto now = QDateTime::currentMSecsSinceEpoch();
+    // else if (!file.open(QIODevice::ReadOnly))
+    //     WARN << "Failed to read saved searches:" << file.errorString();
 
-    unique_lock lock(m);
-
-    while (block_until > QDateTime::currentMSecsSinceEpoch())
-        if (valid)
-            QThread::msleep(10);
-        else
-            return valid;
-
-    block_until = now + 200; // 30 per minute
-
-    return valid;
-}
-
-static shared_ptr<Item> createErrorItem(const QString &error)
-{
-    WARN << error;
-    return StandardItem::make(u"notify"_s, u"GitHub"_s, error, error_icon_urls);
-}
-
-void Plugin::handleTriggerQuery(Query &query)
-{
-    // Drop first word if it matches a media type and put the type to the search type flags
-    const auto prefix = query.string().section(QChar::Space, 0, 0, QString::SectionSkipEmpty);
-    auto query_string = query.string().section(QChar::Space, 1, -1, QString::SectionSkipEmpty);
-
-    if (prefix == u"i"_s)
-    {
-        if (!debounce(query.isValid()))
-            return;
-
-        else if (const auto var = api.parseJson(await(api.searchIssues(query_string)));
-            holds_alternative<QString>(var))
-            query.add(createErrorItem(get<QString>(var)));
-
-        else
-        {
-            const auto v =
-                get<QJsonDocument>(var).object()["items"_L1].toArray()
-                           | views::transform([this](const auto &val){
-                                 auto item = IssueItem::make(*this, val.toObject());
-                                 item->moveToThread(qApp->thread());
-                                 return item;
-                             });
-            query.add({v.begin(), v.end()});
-        }
-    }
-
-    else if (prefix == u"r"_s)
-    {
-        if (!debounce(query.isValid()))
-            return;
-
-        else if (const auto var = api.parseJson(await(api.searchRepositories(query_string)));
-            holds_alternative<QString>(var))
-            query.add(createErrorItem(get<QString>(var)));
-
-        else
-        {
-            const auto v =
-                get<QJsonDocument>(var).object()["items"_L1].toArray()
-                           | views::transform([this](const auto &val){
-                                 auto item = RepoItem::make(*this, val.toObject());
-                                 item->moveToThread(qApp->thread());
-                                 return item;
-                             });
-            query.add({v.begin(), v.end()});
-        }
-    }
-
-    else if (prefix == u"u"_s)
-    {
-        if (query_string.isEmpty() && !user_login.isEmpty())
-        {
-            query.add(StandardItem::make(
-                user_login,
-                u"%1 @%2"_s.arg(user_name, user_login),
-                user_bio,
-                {makeMaskedIconUrl(makeAvatarPath(user_login))},
-                {{u"open"_s, u"Open in browser"_s, [this]{ openUrl(user_url); }}}
-            ));
-        }
-
-        else if (!debounce(query.isValid()))
-            return;
-
-        else if (const auto var = api.parseJson(await(api.searchUsers(query_string)));
-            holds_alternative<QString>(var))
-            query.add(createErrorItem(get<QString>(var)));
-
-        else
-        {
-            const auto v =
-                get<QJsonDocument>(var).object()["items"_L1].toArray()
-                | views::transform([this](const auto &val){
-                      auto item = AccountItem::make(*this, val.toObject());
-                      item->moveToThread(qApp->thread());
-                      return item;
-                  });
-
-            query.add({v.begin(), v.end()});
-        }
-    }
-
-    // else if (prefix == u"n"_s)
+    // else
     // {
-    //     if (!debounce(query.isValid()))
-    //         return;
+    //     QJsonParseError error;
+    //     if (const auto doc = QJsonDocument::fromJson(file.readAll(), &error);
+    //         error.error != QJsonParseError::NoError)
+    //         WARN << "Failed to parse JSON (saved searches):" << error.errorString();
 
-    //     if (const auto var = parseJson(await(api.notifications()));
-    //         holds_alternative<QString>(var))
-    //         query.add(createErrorItem(get<QString>(var)));
     //     else
     //     {
-    //         vector<shared_ptr<Item>> items;
-    //         Matcher matcher(query);
+    //         const auto root_obj = doc.object();
 
-    //         for (const QJsonValue &val : get<QJsonDocument>(var).array())
+    //         for (auto handler : initializer_list<GithubSearchHandler*> {&user_search_handler,
+    //                                                                     &repo_search_handler,
+    //                                                                     &issue_search_handler})
     //         {
-    //             const auto obj = val.toObject();
-    //             const auto title = obj["subject"]["title"].toString();
+    //             std::flat_map<QString, QString> saved_searches;
 
-    //             if (auto m = matcher.match(title); m)
-    //             {
-    //                 const auto slug = obj["repository"]["full_name"].toString();
-    //                 const auto type = obj["subject"]["type"].toString();
-    //                 const auto unread = obj["unread"].toBool();
-    //                 const auto url = obj["subject"]["latest_comment_url"].isNull()
-    //                                      ? obj["subject"]["latest_comment_url"].toString()
-    //                                      : obj["subject"]["url"].toString();
+    //             const auto cat_object = root_obj[handler->id().section(u'.', 1)].toObject();
+    //             for (auto it = cat_object.begin(); it != cat_object.end(); ++it)
+    //                 saved_searches.emplace(it.key(), it.value().toString());
 
-    //                 items.emplace_back(StandardItem::make(
-    //                     title,
-    //                     title,
-    //                     unread ? u"[UNREAD] %1 · %2"_s.arg(type, slug)
-    //                            : u"%1 · %2"_s.arg(type, slug),
-    //                     default_icon_urls,
-    //                     {{
-    //                         "open",
-    //                         "Open in browser",
-    //                         [url, this] {
-    //                             if (const auto v = parseJson(await(api.getLinkData(url)));
-    //                                 holds_alternative<QString>(v))
-    //                                 WARN << get<QString>(v);
-    //                             else
-    //                                 openUrl(get<QJsonDocument>(v).object()["html_url"].toString());
-    //                         }
-    //                     }}
-    //                 ));
-    //             }
+    //             handler->setSavedSearches(std::move(saved_searches));
     //         }
-
-    //         query.add(::move(items));
     //     }
     // }
+// }
 
-    else
-    {
-        auto rank_items = handleGlobalQuery(query);
-        applyUsageScore(&rank_items);
-        ranges::sort(rank_items, greater());
-        auto v = rank_items | views::transform(&RankItem::item);
-        query.add({v.begin(), v.end()});
-    }
-}
+// void Plugin::writeSavedSearches()
+// {
+    // QJsonObject saved_searches;
+    // for (const auto handler : initializer_list<GithubSearchHandler*>{&user_search_handler,
+    //                                                                   &repo_search_handler,
+    //                                                                   &issue_search_handler})
+    // {
+    //     QJsonObject searches;
+    //     for (const auto &[title, query] : handler->savedSearches())
+    //         searches[title] = query;
 
-vector<RankItem> Plugin::handleGlobalQuery(const albert::Query &query)
-{
-    vector<RankItem> r;
-    Matcher matcher(query);
-    for (const auto &[t, q] : saved_searches)
-        if (auto m = matcher.match(t); m)
-        {
-            auto _q = trigger + q;
-            r.emplace_back(StandardItem::make(
-                               t, t, _q, default_icon_urls,
-                               {{u"show"_s, u"Show"_s, [=]{ show(_q); }, false}}
-                            ), m);
-        }
+    //     saved_searches[handler->id().section(u'.', 1)] = searches;  // drop "github."
+    // }
 
-    return r;
-}
+    // if (!QDir(savedSearchesFilePath().parent_path()).mkpath(u".."_s))
+    //     WARN << "Failed to create directory:" << savedSearchesFilePath().parent_path();
 
-void Plugin::setTrigger(const QString &t) { trigger = t; }
+    // else if (QFile file(savedSearchesFilePath());
+    //          !file.open(QIODevice::WriteOnly))
+    //     WARN << "Failed to write saved searches:" << file.errorString();
 
-const vector<SavedSearch> &Plugin::savedSearches() const { return saved_searches; }
+    // else if (file.write(QJsonDocument(saved_searches).toJson()) == -1)
+    //     WARN << "Failed to write saved searches:" << file.errorString();
 
-void Plugin::setSavedSearches(const vector<SavedSearch> &ss)
-{
-    if (ss != saved_searches)
-    {
-        saved_searches = ss;
+    // else
+    //     DEBG << "Sucessfully wrote saved searches to" << file.fileName();
+// }
 
-        auto s = settings();
-        s->beginWriteArray(ck_saved_searches);
-        int i = 0;
-        for (const auto &[t, q] : ss) {
-            s->setArrayIndex(i++);
-            s->setValue("title", t);
-            s->setValue("query", q);
-        }
-        s->endArray();
 
-        emit savedSearchesChanged();
-    }
-}
+// void Plugin::restoreDefaultSavedSearches()
+// {
+//     issue_search_handler.setSavedSearches({
+//         {Plugin::tr("Assigned issues"),        u"is:open is:issue assignee:@me"_s},
+//         {Plugin::tr("Created issues"),         u"is:open is:issue author:@me"_s},
+//         {Plugin::tr("Assigned pull requests"), u"is:open is:pr assignee:@me"_s},
+//         {Plugin::tr("Created pull requests"),  u"is:open is:pr author:@me"_s},
+//         {Plugin::tr("Review requests"),        u"is:open is:pr review-requested:@me"_s},
+//         {Plugin::tr("Mentions"),               u"mentions:@me"_s},
+//         {Plugin::tr("Recent activity"),        u"involves:@me"_s}
+//     });
 
-void Plugin::restoreDefaultSavedSearches()
-{
-    vector<SavedSearch> ss;
+//     repo_search_handler.setSavedSearches({
+//         {
+//             Plugin::tr("My repositories"),
+//             u"sort:updated-desc fork:true user:@me"_s
+//         },
+//         {
+//             Plugin::tr("Albert repositories"),
+//             u"sort:updated-desc fork:true archived:false org:albertlauncher"_s
+//         },
+//         {
+//             Plugin::tr("Archived Albert repositories"),
+//             u"sort:updated-desc fork:true archived:true org:albertlauncher"_s
+//         }
+//     });
 
-    ss.emplace_back(tr("Assigned issues"), u"i is:issue sort:updated-desc state:open assignee:@me "_s);
-    ss.emplace_back(tr("Created issues"), u"i is:issue sort:updated-desc state:open author:@me "_s);
-    ss.emplace_back(tr("Mentions"), u"i is:issue sort:updated-desc state:open mentions:@me "_s);
-    ss.emplace_back(tr("Recent activity"), u"i is:issue sort:updated-desc involves:@me "_s);
-    ss.emplace_back(tr("Repositories"), u"r sort:updated-desc owner:%1 "_s.arg(user_login));
+//     writeSavedSearches();
+// }
 
-    setSavedSearches(ss);
-}
