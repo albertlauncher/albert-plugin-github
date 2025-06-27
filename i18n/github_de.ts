@@ -4,16 +4,16 @@
 <context>
     <name>ConfigWidget</name>
     <message>
-        <source>GitHub OAuth app credentials</source>
-        <translation>GitHub-OAuth-App-Zugangsdaten</translation>
-    </message>
-    <message>
         <source>Saved searches</source>
         <translation>Gespeicherte Suchanfragen</translation>
     </message>
     <message>
         <source>See the GitHub [user](%1), [repo](%2) and [issue](%3) search documentation.</source>
         <translation>Siehe die GitHub-[Benutzer](%1)-, [Repository](%2)- und [Issue](%3)-Suchdokumentation.</translation>
+    </message>
+    <message>
+        <source>GitHub OAuth app credentials (See README)</source>
+        <translation>GitHub-OAuth-App-Zugangsdaten (siehe README)</translation>
     </message>
 </context>
 <context>

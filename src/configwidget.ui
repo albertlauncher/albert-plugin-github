@@ -14,7 +14,7 @@
    <item>
     <widget class="QGroupBox" name="groupBox_oauth">
      <property name="title">
-      <string>GitHub OAuth app credentials</string>
+      <string>GitHub OAuth app credentials (See README)</string>
      </property>
      <layout class="QVBoxLayout" name="verticalLayout"/>
     </widget>
