@@ -17,8 +17,4 @@ public:
     Ui::ConfigWidget ui;
     Plugin &plugin_;
 
-private:
-
-    void updateViewHeight();
-
 };

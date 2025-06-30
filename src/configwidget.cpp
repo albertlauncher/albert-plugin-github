@@ -254,37 +254,6 @@ ConfigWidget::ConfigWidget(Plugin &p, OAuth2 &oauth) :
     ui.treeView->resizeColumnToContents(0);
     connect(ui.treeView->model(), &QAbstractItemModel::dataChanged,
             this, [tv=ui.treeView] { tv->resizeColumnToContents(0); });
-
-    updateViewHeight();
-    connect(ui.treeView->model(), &QAbstractItemModel::rowsInserted,
-            this, &ConfigWidget::updateViewHeight);
-    connect(ui.treeView->model(), &QAbstractItemModel::rowsRemoved,
-            this, &ConfigWidget::updateViewHeight);
-}
-
-void ConfigWidget::updateViewHeight()
-{
-    function<int(const QAbstractItemView &v, const QModelIndex& parent)> computeHeight =
-        [&](const QAbstractItemView &v, const QModelIndex& parent)
-    {
-        auto height = 0;
-        int rows = v.model()->rowCount(parent);
-        for (int i = 0; i < rows; ++i)
-        {
-            QModelIndex index = v.model()->index(i, 0, parent);
-            height += v.sizeHintForIndex(index).height();
-            if (v.model()->hasChildren(index))
-                height += computeHeight(v, index);
-        }
-        return height;
-    };
-
-    auto view_height = computeHeight(*ui.treeView, {})
-                       + ui.treeView->header()->height()
-                       + ui.treeView->contentsMargins().bottom()
-                       + ui.treeView->contentsMargins().top();
-    ui.treeView->setMinimumHeight(view_height);
-    ui.treeView->setMaximumHeight(view_height);
 }
 
 #include "configwidget.moc"
