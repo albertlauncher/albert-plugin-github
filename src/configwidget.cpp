@@ -100,7 +100,8 @@ public:
     QVariant headerData(int section, Qt::Orientation, int role) const override
     {
         if (role == Qt::DisplayRole)
-            return section == 0 ? tr("Title") : tr("Query");
+            return section == 0 ? ConfigWidget::tr("Title")
+                                : ConfigWidget::tr("Query");
         return {};
     }
 
@@ -139,7 +140,7 @@ public:
             if (index.row() == (int)handlers_.at(parent.row())->savedSearches().size())  // vrow
             {
                 if (role == Qt::DisplayRole)
-                    return index.column() == 0 ? tr("New search") : u"…"_s;
+                    return index.column() == 0 ? ConfigWidget::tr("New search") : u"…"_s;
                 else if (role == Qt::ForegroundRole)
                     return qApp->palette().placeholderText();
             }
@@ -191,7 +192,7 @@ public:
             auto saved_searches = h->savedSearches();
             beginInsertRows(parent, row, row + count - 1);
             for (int i = 0; i < count; ++i)
-                saved_searches.emplace_back(tr("New search"), QString{});
+                saved_searches.emplace_back(ConfigWidget::tr("New search"), QString{});
             h->setSavedSearches(saved_searches);
             endInsertRows();
             return true;
@@ -241,13 +242,12 @@ ConfigWidget::ConfigWidget(Plugin &p, OAuth2 &oauth) :
     auto model = new SavedSearchItemModel(plugin_.search_handlers_, this);
     ui.treeView->setModel(model);
 
-
     auto *delegate = new RemoveButtonDelegate(ui.treeView);
     ui.treeView->setItemDelegate(delegate);
 
-    connect(delegate, &RemoveButtonDelegate::removeRequested, this, [model](const QModelIndex &index) {
-        model->removeRow(index.row(), index.parent());
-    });
+    connect(delegate, &RemoveButtonDelegate::removeRequested,
+            this, [model](const QModelIndex &index)
+            { model->removeRow(index.row(), index.parent()); });
 
     ui.treeView->expandAll();
 

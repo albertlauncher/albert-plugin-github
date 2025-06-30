@@ -15,6 +15,18 @@
         <source>GitHub OAuth app credentials (See README)</source>
         <translation>GitHub-OAuth-App-Zugangsdaten (siehe README)</translation>
     </message>
+    <message>
+        <source>Title</source>
+        <translation>Titel</translation>
+    </message>
+    <message>
+        <source>Query</source>
+        <translation>Abfrage</translation>
+    </message>
+    <message>
+        <source>New search</source>
+        <translation>Neue Suche</translation>
+    </message>
 </context>
 <context>
     <name>GitHubItem</name>
@@ -96,21 +108,6 @@
     <message>
         <source>Albert pull requests</source>
         <translation>Albert-Pull-Requests</translation>
-    </message>
-</context>
-<context>
-    <name>SavedSearchItemModel</name>
-    <message>
-        <source>Title</source>
-        <translation>Titel</translation>
-    </message>
-    <message>
-        <source>Query</source>
-        <translation>Abfrage</translation>
-    </message>
-    <message>
-        <source>New search</source>
-        <translation>Neue Suche</translation>
     </message>
 </context>
 </TS>
