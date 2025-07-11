@@ -34,6 +34,22 @@
         <source>Show on GitHub</source>
         <translation>Auf GitHub anzeigen</translation>
     </message>
+    <message>
+        <source>Open issues</source>
+        <translation>Issues öffnen</translation>
+    </message>
+    <message>
+        <source>Open pull requests</source>
+        <translation>Pull-Requests öffnen</translation>
+    </message>
+    <message>
+        <source>Open discussions</source>
+        <translation>Diskussionen öffnen</translation>
+    </message>
+    <message>
+        <source>Open wiki</source>
+        <translation>Wiki öffnen</translation>
+    </message>
 </context>
 <context>
     <name>Plugin</name>

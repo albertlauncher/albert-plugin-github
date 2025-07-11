@@ -34,6 +34,22 @@
         <source>Show on GitHub</source>
         <translation></translation>
     </message>
+    <message>
+        <source>Open issues</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>Open pull requests</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>Open discussions</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>Open wiki</source>
+        <translation></translation>
+    </message>
 </context>
 <context>
     <name>Plugin</name>

@@ -133,19 +133,19 @@ vector<Action> RepositoryItem::actions() const
 
     if (has_issues)
     {
-        actions.emplace_back(u"oi"_s, u"Open issues"_s,
+        actions.emplace_back(u"oi"_s, GitHubItem::tr("Open issues"),
                              [this]{ openUrl(html_url_ + u"/issues"_s); });
 
-        actions.emplace_back(u"op"_s, u"Open pull requests"_s,
+        actions.emplace_back(u"op"_s, GitHubItem::tr("Open pull requests"),
                              [this]{ openUrl(html_url_ + u"/pulls"_s); });
     }
 
     if (has_discussions)
-        actions.emplace_back(u"od"_s, u"Open discussions"_s,
+        actions.emplace_back(u"od"_s, GitHubItem::tr("Open discussions"),
                              [this]{ openUrl(html_url_ + u"/discussions"_s); });
 
     if (has_wiki)
-        actions.emplace_back(u"ow"_s, u"Open wiki"_s,
+        actions.emplace_back(u"ow"_s, GitHubItem::tr("Open wiki"),
                              [this]{ openUrl(html_url_ + u"/wiki"_s); });
 
     return actions;
