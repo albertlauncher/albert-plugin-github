@@ -41,15 +41,16 @@ QStringList GitHubItem::iconUrls() const
 {
     if (local_icon_url_.isNull())  // lazy, first request
     {
-        const auto icons_location = cacheLocation() / "github" / "icons";
+        QUrl remote_icon_url(remote_icon_url_);
 
-        if (const auto icon_path = QDir(icons_location).filePath(id() + u".jpeg"_s);
+        if (const auto icon_path = QDir(cacheLocation() / "github" / "icons")
+                                       .filePath(remote_icon_url.fileName() + u".jpg"_s);
             QFile::exists(icon_path))
             local_icon_url_ = makeMaskedIconUrl(icon_path);
 
         else if (!download_)
         {
-            download_ = Download::unique(remote_icon_url_, icon_path);
+            download_ = Download::unique(remote_icon_url, icon_path);
 
             connect(download_.get(), &Download::finished, this, [=, this]{
                 if (const auto error = download_->error();
