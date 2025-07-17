@@ -144,8 +144,8 @@ void Plugin::handleTriggerQuery(Query &q)
     for (const auto &handler : search_handlers_)
     {
         auto ri = handler->handleGlobalQuery(q);
-        handler->applyUsageScore(&ri);
-        ranges::move(ri, std::back_inserter(results));
+        handler->applyUsageScore(ri);
+        ranges::move(ri, back_inserter(results));
     }
 
     ranges::sort(results, greater());

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(github VERSION 0.8)
+project(github VERSION 0.9)
 
 find_package(Albert REQUIRED)
 
