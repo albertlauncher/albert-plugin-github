@@ -13,6 +13,7 @@
 #include <albert/matcher.h>
 #include <albert/networkutil.h>
 #include <albert/standarditem.h>
+#include <albert/systemutil.h>
 #include <ranges>
 using namespace Qt::StringLiterals;
 using namespace albert::util;
@@ -104,7 +105,24 @@ vector<RankItem> GithubSearchHandler::handleGlobalQuery(const Query &query)
         if (auto m = matcher.match(t); m)
         {
             auto _q = trigger_ + q;
-            vector<Action> actions{{u"show"_s, u"Show"_s, [=]{ show(_q + QChar::Space); }, false}};
+
+            vector<Action> actions;
+
+            actions.emplace_back(
+                u"show"_s, Plugin::tr("Show"),
+                [=]{
+                    show(_q + QChar::Space);
+                },
+                false
+                );
+
+            actions.emplace_back(
+                u"github"_s, Plugin::tr("Show on GitHub"),
+                [=]{
+                    auto percEncQuery = QString::fromUtf8(QUrl::toPercentEncoding(q));
+                    openUrl(u"https://github.com/issues?q="_s + percEncQuery);
+                });
+
             auto icon = QStringList{u":github"_s};
             r.emplace_back(StandardItem::make(t, t, ::move(_q), ::move(icon), ::move(actions)), m);
         }

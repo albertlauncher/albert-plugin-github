@@ -2,17 +2,36 @@
 
 ## Features
 
-- Provides query handlers for GitHub user, repository and issue search.
+- Provides query handlers for [GitHub search](https://docs.github.com/search-github).
+  - GitHub [user search](https://docs.github.com/search-github/searching-on-github/searching-users) (users _and_ organizations)
+  - GitHub [repository search](https://docs.github.com/search-github/searching-on-github/searching-for-repositories)
+  - GitHub [issue search](https://docs.github.com/search-github/searching-on-github/searching-issues-and-pull-requests) (issues _and_ pull requests)
 - Triggered queries perform a GitHub search.
 - Global queries return customizable saved searches.
+- Item actions
+  - User/Organization
+    - Show on GitHub.
+  - Repository
+    - Show on GitHub.
+    - Show issues on GitHub.
+    - Show pull requests on GitHub.
+    - Show discussions on GitHub.
+    - Show wiki on GitHub.
+  - Issue
+    - Show on GitHub.
+  - Saved search
+    - Run.
+    - Run on GitHub.
 - The root trigger queryhandler returns the saved searches of the dedicated search handlers.
 - Authentication allows for private access and higher rate limits.
+
 
 ## Note
 
 GitHub has a complex [rate limiting system](https://docs.github.com/rest/using-the-rest-api/rate-limits-for-the-rest-api?apiVersion=2022-11-28). 
 Limits of unauthenticated API queries are hit quickly. 
 Use authentication to avoid getting limited (see the section below).
+
 
 ## Setup
 
@@ -23,6 +42,7 @@ Use authentication to avoid getting limited (see the section below).
 1. Click *Register application*.
 1. Click *Generate a new client secret*.
 1. Insert *Client ID* and *Client secret* in the plugin settings and click the authorize button.
+
 
 ## Technical notes
 

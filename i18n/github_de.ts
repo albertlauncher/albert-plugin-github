@@ -125,5 +125,13 @@
         <source>Albert pull requests</source>
         <translation>Albert-Pull-Requests</translation>
     </message>
+    <message>
+        <source>Show</source>
+        <translation>Zeigen</translation>
+    </message>
+    <message>
+        <source>Show on GitHub</source>
+        <translation>Auf GitHub anzeigen</translation>
+    </message>
 </context>
 </TS>
