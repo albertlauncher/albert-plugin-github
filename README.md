@@ -1,4 +1,4 @@
-# albert-plugin-github
+# Albert plugin: GitHub
 
 ## Features
 
