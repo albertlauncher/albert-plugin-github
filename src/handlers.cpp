@@ -119,8 +119,7 @@ vector<RankItem> GithubSearchHandler::handleGlobalQuery(const Query &query)
             actions.emplace_back(
                 u"github"_s, Plugin::tr("Show on GitHub"),
                 [=]{
-                    auto percEncQuery = QString::fromUtf8(QUrl::toPercentEncoding(q));
-                    openUrl(u"https://github.com/issues?q="_s + percEncQuery);
+                    openUrl(u"https://github.com/issues?q="_s + percentEncoded(q));
                 });
 
             auto icon = QStringList{u":github"_s};

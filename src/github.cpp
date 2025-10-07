@@ -117,7 +117,7 @@ QNetworkReply *RestApi::searchUsers(const QString &query, int per_page, int page
 {
     // https://docs.github.com/en/rest/search/search#search-users
     return network().get(request(u"/search/users"_s,
-                                 {{u"q"_s, QString::fromUtf8(QUrl::toPercentEncoding(query))},
+                                 {{u"q"_s, percentEncoded(query)},
                                   {u"per_page"_s, QString::number(per_page)},
                                   {u"page"_s, QString::number(page)}}));
 }
@@ -126,7 +126,7 @@ QNetworkReply *RestApi::searchIssues(const QString &query, int per_page, int pag
 {
     // https://docs.github.com/en/rest/search/search#search-repositories
     return network().get(request(u"/search/issues"_s,
-                                 {{u"q"_s, QString::fromUtf8(QUrl::toPercentEncoding(query))},
+                                 {{u"q"_s, percentEncoded(query)},
                                   {u"per_page"_s, QString::number(per_page)},
                                   {u"page"_s, QString::number(page)},
                                   {u"advanced_search"_s, u"true"_s}}));
@@ -136,7 +136,7 @@ QNetworkReply *RestApi::searchRepositories(const QString &query, int per_page, i
 {
     // https://docs.github.com/en/rest/search/search#search-issues-and-pull-requests
     return network().get(request(u"/search/repositories"_s,
-                                 {{u"q"_s, QString::fromUtf8(QUrl::toPercentEncoding(query))},
+                                 {{u"q"_s, percentEncoded(query)},
                                   {u"per_page"_s, QString::number(per_page)},
                                   {u"page"_s, QString::number(page)}}));
 }
