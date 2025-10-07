@@ -9,6 +9,7 @@
 #include <QJsonObject>
 #include <QThread>
 #include <albert/albert.h>
+#include <albert/iconutil.h>
 #include <albert/logging.h>
 #include <albert/matcher.h>
 #include <albert/networkutil.h>
@@ -20,6 +21,8 @@ using namespace albert::util;
 using namespace albert;
 using namespace github;
 using namespace std;
+
+static unique_ptr<Icon> makeGithubIcon() { return makeImageIcon(u":github"_s); }
 
 GithubSearchHandler::GithubSearchHandler(const RestApi &api,
                                          const QString &id,
@@ -49,9 +52,10 @@ void GithubSearchHandler::setTrigger(const QString &t)
 
 static auto makeErrorItem(const QString &error)
 {
-    auto icon = QStringList{u"comp:?src1=%3Agithub&src2=qsp%3ASP_MessageBoxWarning"_s};
     WARN << error;
-    return StandardItem::make(u"notify"_s, u"GitHub"_s, error, ::move(icon));
+    return StandardItem::make(u"notify"_s, u"GitHub"_s, error,
+                              []{ return makeComposedIcon(makeGithubIcon(),
+                                                          makeStandardIcon(MessageBoxWarning)); });
 }
 
 void GithubSearchHandler::handleTriggerQuery(albert::Query &q)
@@ -122,8 +126,7 @@ vector<RankItem> GithubSearchHandler::handleGlobalQuery(const Query &query)
                     openUrl(u"https://github.com/issues?q="_s + percentEncoded(q));
                 });
 
-            auto icon = QStringList{u":github"_s};
-            r.emplace_back(StandardItem::make(t, t, ::move(_q), ::move(icon), ::move(actions)), m);
+            r.emplace_back(StandardItem::make(t, t, ::move(_q), makeGithubIcon, ::move(actions)), m);
         }
     return r;
 }

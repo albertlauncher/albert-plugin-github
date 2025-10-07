@@ -1,21 +1,20 @@
 // // Copyright (c) 2025-2025 Manuel Schneider
 
 #include "items.h"
-#include <albert/albert.h>
-#include <albert/logging.h>
-#include <albert/download.h>
-#include <albert/systemutil.h>
-#include <QDir>
 #include <QCoreApplication>
+#include <QDir>
 #include <QFile>
+#include <albert/albert.h>
+#include <albert/download.h>
+#include <albert/iconutil.h>
+#include <albert/logging.h>
+#include <albert/networkutil.h>
+#include <albert/systemutil.h>
 using namespace Qt::StringLiterals;
 using namespace albert::util;
 using namespace albert;
 using namespace std;
 
-
-static QString makeMaskedIconUrl(const QString path)
-{ return u"mask:?src=%1&radius=2"_s.arg(QString::fromUtf8(QUrl::toPercentEncoding(path))); }
 
 GitHubItem::GitHubItem(const QString &id,
                        const QString &title,
@@ -31,22 +30,24 @@ GitHubItem::GitHubItem(const QString &id,
     moveToThread(qApp->thread());  // Signals wont work with affinity to a thread w/o loop
 }
 
+GitHubItem::~GitHubItem() = default;
+
 QString GitHubItem::id() const { return id_; }
 
 QString GitHubItem::text() const { return title_; }
 
 QString GitHubItem::subtext() const { return description_; }
 
-QStringList GitHubItem::iconUrls() const
+unique_ptr<Icon> GitHubItem::icon() const
 {
-    if (local_icon_url_.isNull())  // lazy, first request
+    if (!icon_)  // lazy, first request
     {
         QUrl remote_icon_url(remote_icon_url_);
 
         if (const auto icon_path = QDir(cacheLocation() / "github" / "icons")
                                        .filePath(remote_icon_url.fileName() + u".jpg"_s);
             QFile::exists(icon_path))
-            local_icon_url_ = makeMaskedIconUrl(icon_path);
+            icon_ = makeIconifiedIcon(makeImageIcon(icon_path));
 
         else if (!download_)
         {
@@ -55,18 +56,19 @@ QStringList GitHubItem::iconUrls() const
             connect(download_.get(), &Download::finished, this, [=, this]{
                 if (const auto error = download_->error();
                     error.isNull())
-                    local_icon_url_ = makeMaskedIconUrl(download_->path());
+                    icon_ = makeIconifiedIcon(makeImageIcon(download_->path()));
                 else
                 {
                     WARN << "Failed to download icon:" << error;
-                    local_icon_url_ = u":github"_s;
+                    icon_ = makeImageIcon(u":github"_s);
                 }
 
                 dataChanged();
             });
         }
     }
-    return {local_icon_url_};  // awaiting if null
+
+    return icon_ ? icon_->clone() : nullptr;  // awaiting if null
 }
 
 vector<Action> GitHubItem::actions() const
@@ -159,7 +161,7 @@ static QString makeIssueDescription(const QJsonObject &o, const QString id)
     if (const auto reactions = o["reactions"_L1];
         reactions["total_count"_L1].toInt())
     {
-        static const std::array<pair<QLatin1String, QString>, 8>
+        static const array<pair<QLatin1String, QString>, 8>
             reactions_map{{{"+1"_L1, u"👍"_s},
                            {"-1"_L1, u"👎"_s},
                            {"laugh"_L1, u"😄"_s},

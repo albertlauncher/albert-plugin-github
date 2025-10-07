@@ -5,6 +5,7 @@
 #include <albert/item.h>
 #include <memory>
 #include <vector>
+namespace albert { class Icon; }
 namespace albert::util { class Download; }
 
 class GitHubItem : public QObject, public albert::detail::DynamicItem
@@ -18,11 +19,12 @@ public:
                const QString &description,
                const QString &html_url,
                const QString &remote_icon_url);
+    ~GitHubItem();
 
     QString id() const override;
     QString text() const override;
     QString subtext() const override;
-    QStringList iconUrls() const override;
+    std::unique_ptr<albert::Icon> icon() const override;
     std::vector<albert::Action> actions() const override;
 
 protected:
@@ -32,7 +34,7 @@ protected:
     const QString description_;
     const QString html_url_;
     const QString remote_icon_url_;
-    mutable QString local_icon_url_;
+    mutable std::unique_ptr<albert::Icon> icon_;
     mutable std::shared_ptr<albert::util::Download> download_;
 };
 
