@@ -123,7 +123,7 @@ vector<RankItem> GithubSearchHandler::handleGlobalQuery(const Query &query)
             actions.emplace_back(
                 u"github"_s, Plugin::tr("Show on GitHub"),
                 [=]{
-                    openUrl(u"https://github.com/issues?q="_s + percentEncoded(q));
+                    openUrl(u"https://github.com/search?q="_s + percentEncoded(q));
                 });
 
             r.emplace_back(StandardItem::make(t, t, ::move(_q), makeGithubIcon, ::move(actions)), m);
