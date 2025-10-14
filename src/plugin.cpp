@@ -90,13 +90,22 @@ Plugin::Plugin()
 
     // Read the secrets
 
-    if (auto secrets = readKeychain(kck_secrets).split(QChar::Tabulation);
-        secrets.size() == 3)
-    {
-        api.oauth.setClientId(secrets[0]);
-        api.oauth.setClientSecret(secrets[1]);
-        api.oauth.setTokens(secrets[2]);
-    }
+    readKeychain(kck_secrets,
+                 [this](const QString &value){
+                     if (auto secrets = value.split(QChar::Tabulation);
+                         secrets.size() == 3)
+                     {
+                         api.oauth.setClientId(secrets[0]);
+                         api.oauth.setClientSecret(secrets[1]);
+                         api.oauth.setTokens(secrets[2]);
+                         DEBG << "Successfully read GitHub OAuth credentials to keychain.";
+                     }
+                     else
+                         WARN << "Unexpected format of the GitHub OAuth credentials read from keychain.";
+                 },
+                 [](const QString & error){
+                     WARN << "Failed to read GitHub OAuth credentials to keychain:" << error;
+                 });
 
     // Write the secrets on changes
 
@@ -106,7 +115,13 @@ Plugin::Plugin()
                           api.oauth.clientId(),
                           api.oauth.clientSecret(),
                           api.oauth.accessToken()
-                      }.join(QChar::Tabulation));
+                      }.join(QChar::Tabulation),
+                      [] {
+                          DEBG << "Successfully wrote GitHub OAuth credentials to keychain.";
+                      },
+                      [](const QString &error){
+                          WARN << "Failed to write GitHub OAuth credentials to keychain:" << error;
+                      });
     };
 
     connect(&api.oauth, &OAuth2::clientIdChanged, this, writeAuthConfig);
