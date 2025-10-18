@@ -5,8 +5,10 @@
 #include <albert/item.h>
 #include <memory>
 #include <vector>
-namespace albert { class Icon; }
-namespace albert::util { class Download; }
+namespace albert {
+class Icon;
+class Download;
+}
 
 class GitHubItem : public QObject, public albert::detail::DynamicItem
 {
@@ -35,7 +37,7 @@ protected:
     const QString html_url_;
     const QString remote_icon_url_;
     mutable std::unique_ptr<albert::Icon> icon_;
-    mutable std::shared_ptr<albert::util::Download> download_;
+    mutable std::shared_ptr<albert::Download> download_;
 };
 
 

@@ -18,10 +18,10 @@
 #include <albert/matcher.h>
 #include <albert/standarditem.h>
 #include <albert/systemutil.h>
+#include <albert/usagescoring.h>
 #include <mutex>
 ALBERT_LOGGING_CATEGORY("github")
 using namespace Qt::StringLiterals;
-using namespace albert::util;
 using namespace albert;
 using namespace github;
 using namespace std;
@@ -152,21 +152,20 @@ void Plugin::handle(const QUrl &url)
     showSettings(id());
 }
 
-void Plugin::handleTriggerQuery(Query &q)
+void Plugin::handleThreadedQuery(ThreadedQuery &q)
 {
     vector<RankItem> results;
 
     for (const auto &handler : search_handlers_)
     {
         auto ri = handler->handleGlobalQuery(q);
-        handler->applyUsageScore(ri);
+        usageScoring().modifyMatchScores(id(), ri);
         ranges::move(ri, back_inserter(results));
     }
 
     ranges::sort(results, greater());
 
-    auto v = views::transform(results, &RankItem::item);
-    q.add({v.begin(), v.end()});
+    q.add(views::transform(results, &RankItem::item));
 }
 
 // void Plugin::readSavedSearches()

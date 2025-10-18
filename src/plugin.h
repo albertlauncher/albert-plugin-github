@@ -4,7 +4,7 @@
 #include "github.h"
 #include <albert/extensionplugin.h>
 #include <albert/oauth.h>
-#include <albert/triggerqueryhandler.h>
+#include <albert/threadedqueryhandler.h>
 #include <albert/urlhandler.h>
 #include <memory>
 #include <vector>
@@ -12,8 +12,8 @@
 class GithubSearchHandler;
 
 
-class Plugin final : public albert::util::ExtensionPlugin,
-                     public albert::TriggerQueryHandler,
+class Plugin final : public albert::ExtensionPlugin,
+                     public albert::ThreadedQueryHandler,
                      private albert::UrlHandler
 {
     ALBERT_PLUGIN
@@ -27,7 +27,7 @@ public:
     QWidget* buildConfigWidget() override;
     QString defaultTrigger() const override;
     void handle(const QUrl &) override;
-    void handleTriggerQuery(albert::Query &) override;
+    void handleThreadedQuery(ThreadedQuery &) override;
 
     // void writeSavedSearches();
     // void readSavedSearches();

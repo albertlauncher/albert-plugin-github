@@ -1,6 +1,7 @@
 // Copyright (c) 2025-2025 Manuel Schneider
 
 #pragma once
+#include <QObject>
 #include <albert/globalqueryhandler.h>
 #include <mutex>
 class Plugin;
@@ -26,7 +27,7 @@ public:
     QString description() const override;
     QString defaultTrigger() const override;
     void setTrigger(const QString &t) override;
-    void handleTriggerQuery(albert::Query &) override;
+    void handleThreadedQuery(ThreadedQuery &) override;
     std::vector<albert::RankItem> handleGlobalQuery(const albert::Query &) override;
 
     const QString &trigger();

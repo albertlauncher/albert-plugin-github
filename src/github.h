@@ -44,7 +44,7 @@ public:
 
     static std::variant<QJsonDocument, QString> parseJson(QNetworkReply *reply);
 
-    albert::util::OAuth2 oauth;
+    albert::OAuth2 oauth;
 
 private:
 

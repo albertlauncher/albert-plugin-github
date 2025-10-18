@@ -17,7 +17,6 @@
 #include <albert/systemutil.h>
 #include <ranges>
 using namespace Qt::StringLiterals;
-using namespace albert::util;
 using namespace albert;
 using namespace github;
 using namespace std;
@@ -54,14 +53,14 @@ static auto makeErrorItem(const QString &error)
 {
     WARN << error;
     return StandardItem::make(u"notify"_s, u"GitHub"_s, error,
-                              []{ return makeComposedIcon(makeGithubIcon(),
-                                                          makeStandardIcon(MessageBoxWarning)); });
+                              [] { return makeComposedIcon(makeGithubIcon(),
+                                          makeStandardIcon(MessageBoxWarning)); });
 }
 
-void GithubSearchHandler::handleTriggerQuery(albert::Query &q)
+void GithubSearchHandler::handleThreadedQuery(ThreadedQuery &q)
 {
     if (q.string().isEmpty())
-        GlobalQueryHandler::handleTriggerQuery(q);
+        GlobalQueryHandler::handleThreadedQuery(q);
 
     else if (static auto limiter = albert::detail::RateLimiter(api_.rateLimit());
              !limiter.debounce(q.isValid()))
@@ -72,12 +71,9 @@ void GithubSearchHandler::handleTriggerQuery(albert::Query &q)
         q.add(makeErrorItem(get<QString>(var)));
 
     else
-    {
-        const auto v = get<QJsonDocument>(var)["items"_L1].toArray()
-                       | views::transform([this](const auto& val) { return parseItem(val.toObject()); });
-        vector<shared_ptr<Item>> items{v.begin(), v.end()};
-        q.add(items);  // Todo ranges add
-    }
+        q.add(get<QJsonDocument>(var)["items"_L1].toArray()
+              | views::transform([this](const auto& val)
+                                 { return parseItem(val.toObject()); }));
 }
 
 vector<pair<QString, QString>> GithubSearchHandler::savedSearches() const

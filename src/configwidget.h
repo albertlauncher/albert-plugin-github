@@ -4,7 +4,7 @@
 #include "ui_configwidget.h"
 #include <QWidget>
 class Plugin;
-namespace albert::util { class OAuth2; }
+namespace albert { class OAuth2; }
 
 class ConfigWidget final : public QWidget
 {
@@ -12,7 +12,7 @@ class ConfigWidget final : public QWidget
 
 public:
 
-    explicit ConfigWidget(Plugin &, albert::util::OAuth2 &);
+    explicit ConfigWidget(Plugin &, albert::OAuth2 &);
 
     Ui::ConfigWidget ui;
     Plugin &plugin_;
