@@ -14,6 +14,8 @@ using namespace Qt::StringLiterals;
 using namespace albert;
 using namespace std;
 
+inline static unique_ptr<Icon> placeHolderIcon()
+{ return makeIconifiedIcon(makeImageIcon(u":github"_s)); }
 
 GitHubItem::GitHubItem(const QString &id,
                        const QString &title,
@@ -39,35 +41,34 @@ QString GitHubItem::subtext() const { return description_; }
 
 unique_ptr<Icon> GitHubItem::icon() const
 {
-    if (!icon_)  // lazy, first request
+    if (download_)
+        return placeHolderIcon();
+
+    else if (const auto icon_path = QDir(cacheLocation() / "github" / "icons")
+                                        .filePath(QUrl(remote_icon_url_).fileName() + u".jpg"_s);
+             QFile::exists(icon_path))
+        return makeIconifiedIcon(makeImageIcon(icon_path));
+
+    else
     {
-        QUrl remote_icon_url(remote_icon_url_);
+        download_ = Download::unique(remote_icon_url_, icon_path);
 
-        if (const auto icon_path = QDir(cacheLocation() / "github" / "icons")
-                                       .filePath(remote_icon_url.fileName() + u".jpg"_s);
-            QFile::exists(icon_path))
-            icon_ = makeIconifiedIcon(makeImageIcon(icon_path));
+        connect(download_.get(), &Download::finished, this, [=, this]{
+            if (const auto error = download_->error();
+                error.isNull())
+                icon_ = makeIconifiedIcon(makeImageIcon(download_->path()));
+            else
+            {
+                WARN << "Failed to download icon:" << error;
+                icon_ = makeImageIcon(u":github"_s);
+            }
 
-        else if (!download_)
-        {
-            download_ = Download::unique(remote_icon_url, icon_path);
+            dataChanged();
+            download_.reset();
+        });
 
-            connect(download_.get(), &Download::finished, this, [=, this]{
-                if (const auto error = download_->error();
-                    error.isNull())
-                    icon_ = makeIconifiedIcon(makeImageIcon(download_->path()));
-                else
-                {
-                    WARN << "Failed to download icon:" << error;
-                    icon_ = makeImageIcon(u":github"_s);
-                }
-
-                dataChanged();
-            });
-        }
+        return placeHolderIcon();
     }
-
-    return icon_ ? icon_->clone() : nullptr;  // awaiting if null
 }
 
 vector<Action> GitHubItem::actions() const
