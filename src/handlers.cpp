@@ -43,6 +43,12 @@ QString GithubSearchHandler::description() const { return description_; }
 
 QString GithubSearchHandler::defaultTrigger() const { return default_trigger_ + QChar::Space; }
 
+QString GithubSearchHandler::trigger()
+{
+    lock_guard lock(mtx);
+    return trigger_;
+}
+
 void GithubSearchHandler::setTrigger(const QString &t)
 {
     lock_guard lock(mtx);
@@ -59,10 +65,7 @@ static auto makeErrorItem(const QString &error)
 
 void GithubSearchHandler::handleThreadedQuery(ThreadedQuery &q)
 {
-    if (q.string().isEmpty())
-        GlobalQueryHandler::handleThreadedQuery(q);
-
-    else if (static auto limiter = albert::detail::RateLimiter(api_.rateLimit());
+    if (static auto limiter = albert::detail::RateLimiter(api_.rateLimit());
              !limiter.debounce(q.isValid()))
         return;
 
@@ -94,37 +97,6 @@ void GithubSearchHandler::setSavedSearches(const vector<pair<QString, QString>> 
     }
     if (notify)
         emit savedSearchesChanged();
-}
-
-vector<RankItem> GithubSearchHandler::handleGlobalQuery(const Query &query)
-{
-    std::lock_guard lock(mtx);
-    vector<RankItem> r;
-    Matcher matcher(query);
-    for (const auto &[t, q] : saved_searches_)
-        if (auto m = matcher.match(t); m)
-        {
-            auto _q = trigger_ + q;
-
-            vector<Action> actions;
-
-            actions.emplace_back(
-                u"show"_s, Plugin::tr("Show"),
-                [=]{
-                    show(_q + QChar::Space);
-                },
-                false
-                );
-
-            actions.emplace_back(
-                u"github"_s, Plugin::tr("Show on GitHub"),
-                [=]{
-                    openUrl(u"https://github.com/search?q="_s + percentEncoded(q));
-                });
-
-            r.emplace_back(StandardItem::make(t, t, ::move(_q), makeGithubIcon, ::move(actions)), m);
-        }
-    return r;
 }
 
 //--------------------------------------------------------------------------------------------------

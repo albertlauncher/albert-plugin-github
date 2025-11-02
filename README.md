@@ -2,14 +2,13 @@
 
 ## Features
 
-- Provides query handlers for [GitHub search](https://docs.github.com/search-github).
-  - GitHub [user search](https://docs.github.com/search-github/searching-on-github/searching-users) (users _and_ organizations)
+- Provided query handlers:
+  - GitHub [user search](https://docs.github.com/search-github/searching-on-github/searching-users) (users and organizations)
   - GitHub [repository search](https://docs.github.com/search-github/searching-on-github/searching-for-repositories)
-  - GitHub [issue search](https://docs.github.com/search-github/searching-on-github/searching-issues-and-pull-requests) (issues _and_ pull requests)
-- Triggered queries perform a GitHub search.
-- Global queries return customizable saved searches.
+  - GitHub [issue search](https://docs.github.com/search-github/searching-on-github/searching-issues-and-pull-requests) (issues and pull requests)
+  - Saved searches
 - Item actions
-  - User/Organization
+  - User / Organization
     - Show on GitHub.
   - Repository
     - Show on GitHub.
@@ -17,23 +16,20 @@
     - Show pull requests on GitHub.
     - Show discussions on GitHub.
     - Show wiki on GitHub.
-  - Issue
+  - Issue / Pull request
     - Show on GitHub.
   - Saved search
     - Run.
     - Run on GitHub.
-- The root trigger queryhandler returns the saved searches of the dedicated search handlers.
 - Authentication allows for private access and higher rate limits.
-
 
 ## Note
 
 GitHub has a complex [rate limiting system](https://docs.github.com/rest/using-the-rest-api/rate-limits-for-the-rest-api?apiVersion=2022-11-28). 
-Limits of unauthenticated API queries are hit quickly. 
-Use authentication to avoid getting limited (see the section below).
+Authenticated access has higher rate limts.
+For Albert this means you get faster average response times.
 
-
-## Setup
+## Authenticated access
 
 1. Create an OAuth app on GitHub. ([GitHub docs](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app))
 1. Give it a name.
@@ -43,6 +39,10 @@ Use authentication to avoid getting limited (see the section below).
 1. Click *Generate a new client secret*.
 1. Insert *Client ID* and *Client secret* in the plugin settings and click the authorize button.
 
+### Why that complicated?
+
+1. Shipping embedded credentials introduces an external dependency (that may break functionality).
+1. Shipping embedded credentials in an open source project is difficult to distribute. 
 
 ## Technical notes
 

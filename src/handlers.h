@@ -2,7 +2,7 @@
 
 #pragma once
 #include <QObject>
-#include <albert/globalqueryhandler.h>
+#include <albert/threadedqueryhandler.h>
 #include <mutex>
 class Plugin;
 class QNetworkReply;
@@ -10,8 +10,7 @@ class QJsonArray;
 namespace github { class RestApi; }
 
 
-class GithubSearchHandler : public QObject,
-                            public albert::GlobalQueryHandler
+class GithubSearchHandler : public QObject, public albert::ThreadedQueryHandler
 {
     Q_OBJECT
 
@@ -28,9 +27,8 @@ public:
     QString defaultTrigger() const override;
     void setTrigger(const QString &t) override;
     void handleThreadedQuery(ThreadedQuery &) override;
-    std::vector<albert::RankItem> handleGlobalQuery(const albert::Query &) override;
 
-    const QString &trigger();
+    QString trigger();  // thread-safe
 
     std::vector<std::pair<QString, QString>> savedSearches() const;
     void setSavedSearches(const std::vector<std::pair<QString, QString>>&);

@@ -14,8 +14,10 @@
 #include <QSettings>
 #include <QThread>
 #include <albert/albert.h>
+#include <albert/iconutil.h>
 #include <albert/logging.h>
 #include <albert/matcher.h>
+#include <albert/networkutil.h>
 #include <albert/standarditem.h>
 #include <albert/systemutil.h>
 #include <albert/usagescoring.h>
@@ -152,20 +154,31 @@ void Plugin::handle(const QUrl &url)
     showSettings(id());
 }
 
-void Plugin::handleThreadedQuery(ThreadedQuery &q)
+vector<RankItem> Plugin::handleGlobalQuery(const albert::Query &query)
 {
-    vector<RankItem> results;
-
+    vector<RankItem> r;
+    Matcher matcher(query);
     for (const auto &handler : search_handlers_)
-    {
-        auto ri = handler->handleGlobalQuery(q);
-        usageScoring().modifyMatchScores(id(), ri);
-        ranges::move(ri, back_inserter(results));
-    }
+        for (const auto &[t, q] : handler->savedSearches())
+            if (auto m = matcher.match(t); m)
+            {
+                auto _q = handler->trigger() + q;
 
-    ranges::sort(results, greater());
+                vector<Action> actions;
 
-    q.add(views::transform(results, &RankItem::item));
+                actions.emplace_back(
+                    u"show"_s, Plugin::tr("Show"), [=] { show(_q + QChar::Space); }, false);
+
+                actions.emplace_back(u"github"_s, Plugin::tr("Show on GitHub"), [=] {
+                    openUrl(u"https://github.com/search?q="_s + percentEncoded(q));
+                });
+
+                r.emplace_back(StandardItem::make(t, t, ::move(_q),
+                                                  []{ return makeImageIcon(u":github"_s); },
+                                                  ::move(actions)),
+                               m);
+            }
+    return r;
 }
 
 // void Plugin::readSavedSearches()
