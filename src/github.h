@@ -27,22 +27,22 @@ public:
 
     /// Requires no scopes (if public data is sufficient)
     [[nodiscard]] QNetworkReply* searchUsers(const QString &query,
-                                             int per_page = 100,
-                                             int page = 1) const;
+                                             int per_page,
+                                             int page) const;
 
     /// Requires no scopes (if public data is sufficient)
     [[nodiscard]] QNetworkReply* searchRepositories(const QString &query,
-                                                    int per_page = 100,
-                                                    int page = 1) const;
+                                                    int per_page,
+                                                    int page) const;
 
     /// Requires no scopes (if public data is sufficient)
     [[nodiscard]] QNetworkReply* searchIssues(const QString &query,
-                                              int per_page = 100,
-                                              int page = 1) const;
+                                              int per_page,
+                                              int page) const;
 
     [[nodiscard]] QNetworkReply *getLinkData(const QString & url) const;
 
-    static std::variant<QJsonDocument, QString> parseJson(QNetworkReply *reply);
+    static std::variant<QJsonDocument, QString> parseJson(QNetworkReply &reply);
 
     albert::OAuth2 oauth;
 

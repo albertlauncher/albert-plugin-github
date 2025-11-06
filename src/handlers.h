@@ -2,31 +2,34 @@
 
 #pragma once
 #include <QObject>
-#include <albert/threadedqueryhandler.h>
+#include <albert/queryhandler.h>
+#include <albert/ratelimiter.h>
 #include <mutex>
 class Plugin;
-class QNetworkReply;
 class QJsonArray;
+class QNetworkReply;
 namespace github { class RestApi; }
+namespace albert { class Item; }
 
 
-class GithubSearchHandler : public QObject, public albert::ThreadedQueryHandler
+class GithubSearchHandler : public QObject, public albert::QueryHandler
 {
     Q_OBJECT
 
 public:
 
-    GithubSearchHandler(const github::RestApi&,
-                        const QString &id,
+    GithubSearchHandler(const QString &id,
                         const QString &name,
                         const QString &description,
-                        const QString &defaultTrigger);
+                        const QString &defaultTrigger,
+                        const github::RestApi&);
+
     QString id() const override;
     QString name() const override;
     QString description() const override;
     QString defaultTrigger() const override;
     void setTrigger(const QString &t) override;
-    void handleThreadedQuery(ThreadedQuery &) override;
+    std::unique_ptr<albert::QueryExecution> execution(albert::Query &) override;
 
     QString trigger();  // thread-safe
 
@@ -34,15 +37,16 @@ public:
     void setSavedSearches(const std::vector<std::pair<QString, QString>>&);
 
     virtual std::vector<std::pair<QString, QString>> defaultSearches() const = 0;
-    virtual QNetworkReply *requestSearch(const QString &) const = 0;
+    virtual QNetworkReply *requestSearch(const QString &query, uint page) const = 0;
     virtual std::shared_ptr<albert::Item> parseItem(const QJsonObject &) const = 0;
 
 protected:
-    const github::RestApi &api_;
     const QString id_;
     const QString name_;
     const QString description_;
     const QString default_trigger_;
+    const github::RestApi &api_;
+    albert::detail::RateLimiter rate_limiter_;
 
     // Things accessesd by main and query threads
     mutable std::mutex mtx;
@@ -53,6 +57,8 @@ signals:
 
     void savedSearchesChanged();
 
+    friend class GithubQueryExecution;
+
 };
 
 
@@ -60,7 +66,7 @@ class UserSearchHandler : public GithubSearchHandler
 {
 public:
     UserSearchHandler(const github::RestApi&);
-    QNetworkReply *requestSearch(const QString &) const override;
+    QNetworkReply *requestSearch(const QString &query, uint page) const override;
     std::shared_ptr<albert::Item> parseItem(const QJsonObject &) const override;
     std::vector<std::pair<QString, QString>> defaultSearches() const override;
 };
@@ -70,7 +76,7 @@ class RepoSearchHandler : public GithubSearchHandler
 {
 public:
     RepoSearchHandler(const github::RestApi&);
-    QNetworkReply *requestSearch(const QString &) const override;
+    QNetworkReply *requestSearch(const QString &query, uint page) const override;
     std::shared_ptr<albert::Item> parseItem(const QJsonObject &) const override;
     std::vector<std::pair<QString, QString>> defaultSearches() const override;
 };
@@ -80,7 +86,7 @@ class IssueSearchHandler : public GithubSearchHandler
 {
 public:
     IssueSearchHandler(const github::RestApi&);
-    QNetworkReply *requestSearch(const QString &) const override;
+    QNetworkReply *requestSearch(const QString &query, uint page) const override;
     std::shared_ptr<albert::Item> parseItem(const QJsonObject &) const override;
     std::vector<std::pair<QString, QString>> defaultSearches() const override;
 };

@@ -22,6 +22,7 @@
     - Run.
     - Run on GitHub.
 - Authentication allows for private access and higher rate limits.
+- Search handlers fetch results on demand (infinite scroll).
 
 ## Note
 

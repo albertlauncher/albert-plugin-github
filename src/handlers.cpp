@@ -6,6 +6,7 @@
 #include "plugin.h"
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QNetworkReply>
 #include <QJsonObject>
 #include <QThread>
 #include <albert/albert.h>
@@ -13,27 +14,43 @@
 #include <albert/logging.h>
 #include <albert/matcher.h>
 #include <albert/networkutil.h>
+#include <albert/queryexecution.h>
+#include <albert/queryresults.h>
 #include <albert/standarditem.h>
 #include <albert/systemutil.h>
 #include <ranges>
+#include <memory>
 using namespace Qt::StringLiterals;
+using namespace albert::detail;
 using namespace albert;
 using namespace github;
 using namespace std;
 
 static unique_ptr<Icon> makeGithubIcon() { return makeImageIcon(u":github"_s); }
 
-GithubSearchHandler::GithubSearchHandler(const RestApi &api,
-                                         const QString &id,
+static shared_ptr<Item> makeErrorItem(const QString &error)
+{
+    WARN << error;
+    return StandardItem::make(u"notify"_s, u"GitHub"_s, error,
+                              [] { return makeComposedIcon(makeGithubIcon(),
+                                                           makeStandardIcon(MessageBoxWarning)); });
+}
+
+GithubSearchHandler::GithubSearchHandler(const QString &id,
                                          const QString &name,
                                          const QString &description,
-                                         const QString &defaultTrigger) :
-    api_(api),
-    id_(id),
-    name_(name),
-    description_(description),
-    default_trigger_(defaultTrigger)
-{}
+                                         const QString &defaultTrigger,
+                                         const RestApi &api)
+    : id_(id)
+    , name_(name)
+    , description_(description)
+    , default_trigger_(defaultTrigger)
+    , api_(api)
+    , rate_limiter_(api_.rateLimit())
+{
+    connect(&api_.oauth, &OAuth2::stateChanged,
+            this, [this]{ rate_limiter_.setDelay(api_.rateLimit()); });
+}
 
 QString GithubSearchHandler::id() const { return id_; }
 
@@ -55,29 +72,81 @@ void GithubSearchHandler::setTrigger(const QString &t)
     trigger_ = t;
 }
 
-static auto makeErrorItem(const QString &error)
+class GithubQueryExecution final : public albert::QueryExecution
 {
-    WARN << error;
-    return StandardItem::make(u"notify"_s, u"GitHub"_s, error,
-                              [] { return makeComposedIcon(makeGithubIcon(),
-                                          makeStandardIcon(MessageBoxWarning)); });
-}
+    GithubSearchHandler &handler;
+    unique_ptr<Acquire> acquire;
+    unique_ptr<QNetworkReply> reply;
+    uint page;  // also valid flag
+    bool active;
 
-void GithubSearchHandler::handleThreadedQuery(ThreadedQuery &q)
-{
-    if (static auto limiter = albert::detail::RateLimiter(api_.rateLimit());
-             !limiter.debounce(q.isValid()))
-        return;
+public:
 
-    else if (const auto var = RestApi::parseJson(await(requestSearch(q)));
-             holds_alternative<QString>(var))
-        q.add(makeErrorItem(get<QString>(var)));
+    GithubQueryExecution(GithubSearchHandler &h, Query &q)
+        : albert::QueryExecution(q)
+        , handler(h)
+        , acquire(nullptr)
+        , reply(nullptr)
+        , page(1)
+        , active(false)
+    {
+        fetchMore();
+    };
 
-    else
-        q.add(get<QJsonDocument>(var)["items"_L1].toArray()
-              | views::transform([this](const auto& val)
-                                 { return parseItem(val.toObject()); }));
-}
+    ~GithubQueryExecution() override {}
+
+private:
+
+    void cancel() override
+    {
+        acquire.reset();
+        reply.reset();
+        emit activeChanged(active = false);
+        page = 0;
+    }
+
+    void fetchMore() override
+    {
+        if (isActive() || !canFetchMore())
+            return;
+
+        emit activeChanged(active = true);
+        acquire = handler.rate_limiter_.acquire();
+        connect(acquire.get(), &Acquire::granted, this, [this]
+        {
+            reply.reset(handler.requestSearch(query, page));
+            DEBG << "Request" << reply->url().toString();
+            connect(reply.get(), &QNetworkReply::finished, this, [this]
+            {
+                if (const auto var = RestApi::parseJson(*reply);
+                    holds_alternative<QString>(var))
+                {
+                    results.add(handler, makeErrorItem(get<QString>(var)));
+                    page = 0;
+                }
+                else
+                {
+                    results.add(handler,
+                                get<QJsonDocument>(var)["items"_L1].toArray()
+                                | views::transform([this](const auto& val){
+                                      return handler.parseItem(val.toObject());
+                                  }));
+                    page++;
+                }
+
+                reply.reset();
+                emit activeChanged(active = false);
+            }, Qt::SingleShotConnection);
+        }, Qt::SingleShotConnection);
+    }
+
+    bool canFetchMore() const override { return page > 0; }
+
+    bool isActive() const override { return active; }
+};
+
+unique_ptr<QueryExecution> GithubSearchHandler::execution(Query &q)
+{ return make_unique<GithubQueryExecution>(*this, q); }
 
 vector<pair<QString, QString>> GithubSearchHandler::savedSearches() const
 {
@@ -102,15 +171,15 @@ void GithubSearchHandler::setSavedSearches(const vector<pair<QString, QString>> 
 //--------------------------------------------------------------------------------------------------
 
 UserSearchHandler::UserSearchHandler(const github::RestApi &api):
-    GithubSearchHandler(api,
-                        u"github.users"_s,
+    GithubSearchHandler(u"github.users"_s,
                         Plugin::tr("GitHub users"),
                         Plugin::tr("Search GitHub users"),
-                        u"ghu"_s)
+                        u"ghu"_s,
+                        api)
 {}
 
-QNetworkReply *UserSearchHandler::requestSearch(const QString &q) const
-{ return api_.searchUsers(q); }
+QNetworkReply *UserSearchHandler::requestSearch(const QString &query, uint page) const
+{ return api_.searchUsers(query, 10, page); }
 
 shared_ptr<Item> UserSearchHandler::parseItem(const QJsonObject &o) const
 { return UserItem::fromJson(o); }
@@ -120,15 +189,15 @@ vector<pair<QString, QString>> UserSearchHandler::defaultSearches() const { retu
 //--------------------------------------------------------------------------------------------------
 
 RepoSearchHandler::RepoSearchHandler(const github::RestApi &api):
-    GithubSearchHandler(api,
-                        u"github.repositories"_s,
+    GithubSearchHandler(u"github.repositories"_s,
                         Plugin::tr("GitHub repositories"),
                         Plugin::tr("Search GitHub repositories"),
-                        u"ghr"_s)
+                        u"ghr"_s,
+                        api)
 {}
 
-QNetworkReply *RepoSearchHandler::requestSearch(const QString &q) const
-{ return api_.searchRepositories(q); }
+QNetworkReply *RepoSearchHandler::requestSearch(const QString &query, uint page) const
+{ return api_.searchRepositories(query, 10, page); }
 
 shared_ptr<Item> RepoSearchHandler::parseItem(const QJsonObject &o) const
 { return RepositoryItem::fromJson(o); }
@@ -154,15 +223,15 @@ vector<pair<QString, QString>> RepoSearchHandler::defaultSearches() const
 //--------------------------------------------------------------------------------------------------
 
 IssueSearchHandler::IssueSearchHandler(const github::RestApi &api):
-    GithubSearchHandler(api,
-                        u"github.issues"_s,
+    GithubSearchHandler(u"github.issues"_s,
                         Plugin::tr("GitHub issues"),
                         Plugin::tr("Search GitHub issues"),
-                        u"ghi"_s)
+                        u"ghi"_s,
+                        api)
 {}
 
-QNetworkReply *IssueSearchHandler::requestSearch(const QString &q) const
-{ return api_.searchIssues(q); }
+QNetworkReply *IssueSearchHandler::requestSearch(const QString &query, uint page) const
+{ return api_.searchIssues(query, 10, page); }
 
 shared_ptr<Item> IssueSearchHandler::parseItem(const QJsonObject &o) const
 { return IssueItem::fromJson(o); }
@@ -181,82 +250,3 @@ vector<pair<QString, QString>> IssueSearchHandler::defaultSearches() const
         {Plugin::tr("Recent activity"),        u"involves:@me"_s}
     };
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// else if (prefix == u"n"_s)
-// {
-//     if (!debounce(query.isValid()))
-//         return;
-
-//     if (const auto var = parseJson(await(api.notifications()));
-//         holds_alternative<QString>(var))
-//         query.add(createErrorItem(get<QString>(var)));
-//     else
-//     {
-//         vector<shared_ptr<Item>> items;
-//         Matcher matcher(query);
-
-//         for (const QJsonValue &val : get<QJsonDocument>(var).array())
-//         {
-//             const auto obj = val.toObject();
-//             const auto title = obj["subject"]["title"].toString();
-
-//             if (auto m = matcher.match(title); m)
-//             {
-//                 const auto slug = obj["repository"]["full_name"].toString();
-//                 const auto type = obj["subject"]["type"].toString();
-//                 const auto unread = obj["unread"].toBool();
-//                 const auto url = obj["subject"]["latest_comment_url"].isNull()
-//                                      ? obj["subject"]["latest_comment_url"].toString()
-//                                      : obj["subject"]["url"].toString();
-
-//                 items.emplace_back(StandardItem::make(
-//                     title,
-//                     title,
-//                     unread ? u"[UNREAD] %1 · %2"_s.arg(type, slug)
-//                            : u"%1 · %2"_s.arg(type, slug),
-//                     default_icon_urls,
-//                     {{
-//                         "open",
-//                         "Open in browser",
-//                         [url, this] {
-//                             if (const auto v = parseJson(await(api.getLinkData(url)));
-//                                 holds_alternative<QString>(v))
-//                                 WARN << get<QString>(v);
-//                             else
-//                                 openUrl(get<QJsonDocument>(v).object()["html_url"].toString());
-//                         }
-//                     }}
-//                 ));
-//             }
-//         }
-
-//         query.add(::move(items));
-//     }
-// }

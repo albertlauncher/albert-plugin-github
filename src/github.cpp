@@ -29,15 +29,14 @@ static const auto oauth_token_url = u"https://github.com/login/oauth/access_toke
 // -------------------------------------------------------------------------------------------------
 
 
-variant<QJsonDocument, QString> RestApi::parseJson(QNetworkReply *reply)
+variant<QJsonDocument, QString> RestApi::parseJson(QNetworkReply &reply)
 {
-    reply->deleteLater();
-    const QByteArray data = reply->readAll();
+    const QByteArray data = reply.readAll();
 
     QJsonParseError parseError;
     const auto doc = QJsonDocument::fromJson(data, &parseError);
 
-    if (reply->error() == QNetworkReply::NoError)
+    if (reply.error() == QNetworkReply::NoError)
     {
         if (parseError.error == QJsonParseError::NoError)
             return doc;
@@ -62,7 +61,7 @@ variant<QJsonDocument, QString> RestApi::parseJson(QNetworkReply *reply)
         return message.isEmpty() ? QString::fromUtf8(data) : message;
     }
 
-    return u"%1: %2"_s.arg(reply->errorString(), QString::fromUtf8(data));
+    return u"%1: %2"_s.arg(reply.errorString(), QString::fromUtf8(data));
 }
 
 QNetworkRequest RestApi::request(const QString &path, const QUrlQuery &query) const
