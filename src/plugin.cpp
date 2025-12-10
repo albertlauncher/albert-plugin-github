@@ -100,13 +100,13 @@ Plugin::Plugin()
                          api.oauth.setClientId(secrets[0]);
                          api.oauth.setClientSecret(secrets[1]);
                          api.oauth.setTokens(secrets[2]);
-                         DEBG << "Successfully read GitHub OAuth credentials to keychain.";
+                         DEBG << "Successfully read GitHub OAuth credentials from keychain.";
                      }
                      else
                          WARN << "Unexpected format of the GitHub OAuth credentials read from keychain.";
                  },
                  [](const QString & error){
-                     WARN << "Failed to read GitHub OAuth credentials to keychain:" << error;
+                     WARN << "Failed to read GitHub OAuth credentials from keychain:" << error;
                  });
 
     // Write the secrets on changes
