@@ -90,27 +90,7 @@ Plugin::Plugin()
         connect(handler.get(), &GithubSearchHandler::savedSearchesChanged,
                 this, writeSavedSearches);
 
-    // Read the secrets
-
-    readKeychain(kck_secrets,
-                 [this](const QString &value){
-                     if (auto secrets = value.split(QChar::Tabulation);
-                         secrets.size() == 3)
-                     {
-                         api.oauth.setClientId(secrets[0]);
-                         api.oauth.setClientSecret(secrets[1]);
-                         api.oauth.setTokens(secrets[2]);
-                         DEBG << "Successfully read GitHub OAuth credentials from keychain.";
-                     }
-                     else
-                         WARN << "Unexpected format of the GitHub OAuth credentials read from keychain.";
-                 },
-                 [](const QString & error){
-                     WARN << "Failed to read GitHub OAuth credentials from keychain:" << error;
-                 });
-
     // Write the secrets on changes
-
     const auto writeAuthConfig = [this]{
         writeKeychain(kck_secrets,
                       QStringList{
@@ -126,9 +106,31 @@ Plugin::Plugin()
                       });
     };
 
-    connect(&api.oauth, &OAuth2::clientIdChanged, this, writeAuthConfig);
-    connect(&api.oauth, &OAuth2::clientSecretChanged, this, writeAuthConfig);
-    connect(&api.oauth, &OAuth2::tokensChanged, this, writeAuthConfig);
+    const auto connect_oauth_signals = [this, writeAuthConfig]{
+        connect(&api.oauth, &OAuth2::clientIdChanged, this, writeAuthConfig);
+        connect(&api.oauth, &OAuth2::clientSecretChanged, this, writeAuthConfig);
+        connect(&api.oauth, &OAuth2::tokensChanged, this, writeAuthConfig);
+    };
+
+    // Read the secrets
+    readKeychain(kck_secrets,
+                 [this, connect_oauth_signals](const QString &value){
+                     if (auto secrets = value.split(QChar::Tabulation);
+                         secrets.size() == 3)
+                     {
+                         api.oauth.setClientId(secrets[0]);
+                         api.oauth.setClientSecret(secrets[1]);
+                         api.oauth.setTokens(secrets[2]);
+                         DEBG << "Successfully read GitHub OAuth credentials from keychain.";
+                     }
+                     else
+                         WARN << "Unexpected format of the GitHub OAuth credentials read from keychain.";
+                     connect_oauth_signals();
+                 },
+                 [connect_oauth_signals](const QString & error){
+                     WARN << "Failed to read GitHub OAuth credentials from keychain:" << error;
+                     connect_oauth_signals();
+                 });
 }
 
 Plugin::~Plugin() = default;
