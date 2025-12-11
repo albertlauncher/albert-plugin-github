@@ -2,17 +2,16 @@
 
 #pragma once
 #include <QObject>
-#include <albert/queryhandler.h>
+#include <albert/asyncgeneratorqueryhandler.h>
 #include <albert/ratelimiter.h>
 #include <mutex>
 class Plugin;
 class QJsonArray;
 class QNetworkReply;
-namespace github { class RestApi; }
 namespace albert { class Item; }
+namespace github { class RestApi; }
 
-
-class GithubSearchHandler : public QObject, public albert::QueryHandler
+class GithubSearchHandler : public QObject, public albert::AsyncGeneratorQueryHandler
 {
     Q_OBJECT
 
@@ -29,7 +28,7 @@ public:
     QString description() const override;
     QString defaultTrigger() const override;
     void setTrigger(const QString &t) override;
-    std::unique_ptr<albert::QueryExecution> execution(albert::Query &) override;
+    albert::AsyncItemGenerator items(albert::QueryContext &) override;
 
     QString trigger();  // thread-safe
 

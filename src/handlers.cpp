@@ -4,12 +4,13 @@
 #include "handlers.h"
 #include "items.h"
 #include "plugin.h"
+#include <QCoroAsyncGenerator>
+#include <QCoroNetworkReply>
+#include <QCoroSignal>
 #include <QJsonArray>
 #include <QJsonDocument>
-#include <QNetworkReply>
 #include <QJsonObject>
 #include <QThread>
-#include <albert/albert.h>
 #include <albert/iconutil.h>
 #include <albert/logging.h>
 #include <albert/matcher.h>
@@ -18,8 +19,8 @@
 #include <albert/queryresults.h>
 #include <albert/standarditem.h>
 #include <albert/systemutil.h>
-#include <ranges>
 #include <memory>
+#include <ranges>
 using namespace Qt::StringLiterals;
 using namespace albert::detail;
 using namespace albert;
@@ -72,81 +73,38 @@ void GithubSearchHandler::setTrigger(const QString &t)
     trigger_ = t;
 }
 
-class GithubQueryExecution final : public albert::QueryExecution
+AsyncItemGenerator GithubSearchHandler::items(QueryContext &ctx)
 {
-    GithubSearchHandler &handler;
-    unique_ptr<Acquire> acquire;
-    unique_ptr<QNetworkReply> reply;
-    uint page;  // also valid flag
-    bool active;
-
-public:
-
-    GithubQueryExecution(GithubSearchHandler &h, Query &q)
-        : albert::QueryExecution(q)
-        , handler(h)
-        , acquire(nullptr)
-        , reply(nullptr)
-        , page(1)
-        , active(false)
-    {
-        fetchMore();
-    };
-
-    ~GithubQueryExecution() override {}
-
-private:
-
-    void cancel() override
-    {
-        acquire.reset();
-        reply.reset();
-        emit activeChanged(active = false);
-        page = 0;
-    }
-
-    void fetchMore() override
-    {
-        if (isActive() || !canFetchMore())
-            return;
-
-        emit activeChanged(active = true);
-        acquire = handler.rate_limiter_.acquire();
-        connect(acquire.get(), &Acquire::granted, this, [this]
+    try {
+        for (auto page = 1;; ++page)
         {
-            reply.reset(handler.requestSearch(query, page));
-            DEBG << "Request" << reply->url().toString();
-            connect(reply.get(), &QNetworkReply::finished, this, [this]
+            co_await qCoro(rate_limiter_.acquire().get(), &Acquire::granted);
+
+            if (!ctx.isValid())
+                co_return;
+
+            unique_ptr<QNetworkReply> reply(requestSearch(ctx, page));
+            DEBG << "Fetch" << reply->request().url();
+            co_await qCoro(reply.get()).waitForFinished();
+
+            if (const auto var = RestApi::parseJson(*reply);
+                holds_alternative<QJsonDocument>(var))
             {
-                if (const auto var = RestApi::parseJson(*reply);
-                    holds_alternative<QString>(var))
-                {
-                    results.add(handler, makeErrorItem(get<QString>(var)));
-                    page = 0;
-                }
-                else
-                {
-                    results.add(handler,
-                                get<QJsonDocument>(var)["items"_L1].toArray()
-                                | views::transform([this](const auto& val){
-                                      return handler.parseItem(val.toObject());
-                                  }));
-                    page++;
-                }
-
-                reply.reset();
-                emit activeChanged(active = false);
-            }, Qt::SingleShotConnection);
-        }, Qt::SingleShotConnection);
+                auto v = get<QJsonDocument>(var)["items"_L1].toArray()
+                         | views::transform([this](const auto &val)
+                                            { return parseItem(val.toObject()); });
+                co_yield {begin(v), end(v)};
+            }
+            else
+            {
+                co_yield {makeErrorItem(get<QString>(var))};
+                co_return;
+            }
+        }
+    } catch (...) {
+        CRIT << "EXCEP";
     }
-
-    bool canFetchMore() const override { return page > 0; }
-
-    bool isActive() const override { return active; }
-};
-
-unique_ptr<QueryExecution> GithubSearchHandler::execution(Query &q)
-{ return make_unique<GithubQueryExecution>(*this, q); }
+}
 
 vector<pair<QString, QString>> GithubSearchHandler::savedSearches() const
 {

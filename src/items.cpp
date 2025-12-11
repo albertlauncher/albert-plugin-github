@@ -4,7 +4,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
-#include <albert/albert.h>
+#include <albert/app.h>
 #include <albert/download.h>
 #include <albert/iconutil.h>
 #include <albert/logging.h>
@@ -44,7 +44,7 @@ unique_ptr<Icon> GitHubItem::icon() const
     if (download_)
         return placeHolderIcon();
 
-    else if (const auto icon_path = QDir(cacheLocation() / "github" / "icons")
+    else if (const auto icon_path = QDir(App::cacheLocation() / "github" / "icons")
                                         .filePath(QUrl(remote_icon_url_).fileName() + u".jpg"_s);
              QFile::exists(icon_path))
         return makeIconifiedIcon(makeImageIcon(icon_path));

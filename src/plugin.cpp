@@ -2,7 +2,6 @@
 
 #include "configwidget.h"
 #include "handlers.h"
-#include "items.h"
 #include "plugin.h"
 #include <QCoreApplication>
 #include <QDir>
@@ -13,7 +12,7 @@
 #include <QNetworkReply>
 #include <QSettings>
 #include <QThread>
-#include <albert/albert.h>
+#include <albert/app.h>
 #include <albert/iconutil.h>
 #include <albert/logging.h>
 #include <albert/matcher.h>
@@ -21,7 +20,6 @@
 #include <albert/standarditem.h>
 #include <albert/systemutil.h>
 #include <albert/usagescoring.h>
-#include <mutex>
 ALBERT_LOGGING_CATEGORY("github")
 using namespace Qt::StringLiterals;
 using namespace albert;
@@ -153,13 +151,13 @@ QString Plugin::defaultTrigger() const { return u"gh "_s; }
 void Plugin::handle(const QUrl &url)
 {
     api.oauth.handleCallback(url);
-    showSettings(id());
+    App::instance().showSettings(id());
 }
 
-vector<RankItem> Plugin::handleGlobalQuery(const albert::Query &query)
+vector<RankItem> Plugin::rankItems(QueryContext &ctx)
 {
     vector<RankItem> r;
-    Matcher matcher(query);
+    Matcher matcher(ctx);
     for (const auto &handler : search_handlers_)
         for (const auto &[t, q] : handler->savedSearches())
             if (auto m = matcher.match(t); m)
@@ -169,7 +167,10 @@ vector<RankItem> Plugin::handleGlobalQuery(const albert::Query &query)
                 vector<Action> actions;
 
                 actions.emplace_back(
-                    u"show"_s, Plugin::tr("Show"), [=] { show(_q + QChar::Space); }, false);
+                    u"show"_s,
+                    Plugin::tr("Show"),
+                    [=] { App::instance().show(_q + QChar::Space); },
+                    false);
 
                 actions.emplace_back(u"github"_s, Plugin::tr("Show on GitHub"), [=] {
                     openUrl(u"https://github.com/search?q="_s + percentEncoded(q));
