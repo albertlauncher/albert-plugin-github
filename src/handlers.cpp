@@ -93,11 +93,16 @@ AsyncItemGenerator GithubSearchHandler::items(QueryContext &ctx)
                 auto v = get<QJsonDocument>(var)["items"_L1].toArray()
                          | views::transform([this](const auto &val)
                                             { return parseItem(val.toObject()); });
-                co_yield {begin(v), end(v)};
+                // TODO: GCC>13 yieling temporaries is fine
+                vector<std::shared_ptr<albert::Item>> items(begin(v), end(v));
+                co_yield ::move(items);
             }
             else
             {
-                co_yield {makeErrorItem(get<QString>(var))};
+                // TODO: GCC>13 yieling temporaries is fine
+                vector<std::shared_ptr<albert::Item>> items;
+                items.push_back(makeErrorItem(get<QString>(var)));
+                co_yield ::move(items);
                 co_return;
             }
         }
