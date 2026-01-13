@@ -22,6 +22,7 @@ public:
 
     Plugin();
     ~Plugin() override;
+    void initialize() override;
 
     std::vector<albert::Extension*> extensions() override;
     QWidget* buildConfigWidget() override;
@@ -29,11 +30,9 @@ public:
     void handle(const QUrl &) override;
     std::vector<albert::RankItem> rankItems(albert::QueryContext &) override;
 
-    // void writeSavedSearches();
-    // void readSavedSearches();
-    // void restoreDefaultSavedSearches();
-
-    void authorizedInitialization();
+    void writeSavedSearches();
+    void readSavedSearches();
+    void writeSecrets();
 
     github::RestApi api;
     std::vector<std::unique_ptr<GithubSearchHandler>> search_handlers_;

@@ -4,6 +4,7 @@
 #include "handlers.h"
 #include "plugin.h"
 #include <QCoreApplication>
+#include <QCoroTask>
 #include <QDir>
 #include <QFile>
 #include <QJsonArray>
@@ -12,6 +13,7 @@
 #include <QNetworkReply>
 #include <QSettings>
 #include <QThread>
+#include <QtConcurrentRun>
 #include <albert/app.h>
 #include <albert/iconutil.h>
 #include <albert/logging.h>
@@ -20,23 +22,103 @@
 #include <albert/standarditem.h>
 #include <albert/systemutil.h>
 #include <albert/usagescoring.h>
+#include <qt6keychain/keychain.h>
 ALBERT_LOGGING_CATEGORY("github")
 using namespace Qt::StringLiterals;
 using namespace albert;
 using namespace github;
 using namespace std;
 
-static const auto kck_secrets = u"secrets"_s;
+namespace
+{
+static const auto keychain_service = u"albert.github"_s;
+static const auto keychain_key = u"secrets"_s;
 static const auto ck_saved_searches = "saved_searches"_L1;
+}
 
 Plugin::Plugin()
 {
     search_handlers_.emplace_back(make_unique<UserSearchHandler>(api));
     search_handlers_.emplace_back(make_unique<RepoSearchHandler>(api));
     search_handlers_.emplace_back(make_unique<IssueSearchHandler>(api));
+}
 
-    // Read saved searches
+Plugin::~Plugin() = default;
 
+void Plugin::initialize()
+{
+    QtConcurrent::run([this] {
+        readSavedSearches();
+        for (const auto &handler : search_handlers_)
+            connect(handler.get(), &GithubSearchHandler::savedSearchesChanged,
+                    this, &Plugin::writeSavedSearches);
+    })
+    .then(this, [this] {
+        auto *job = new QKeychain::ReadPasswordJob(keychain_service, this);  // Deletes itself
+        job->setKey(keychain_key);
+
+        connect(job, &QKeychain::ReadPasswordJob::finished, this, [this, job] {
+            if (job->error())
+                WARN << "Failed to read secrets from keychain:" << job->errorString();
+            else if (auto secrets = job->textData().split(QChar::Tabulation);
+                     secrets.size() != 3)
+                WARN << "Unexpected format of the secrets read from keychain.";
+            else
+            {
+                api.oauth.setClientId(secrets[0]);
+                api.oauth.setClientSecret(secrets[1]);
+                api.oauth.setTokens(secrets[2]);
+                DEBG << "Successfully read secrets from keychain.";
+            }
+
+            connect(&api.oauth, &OAuth2::clientIdChanged,     this, &Plugin::writeSecrets);
+            connect(&api.oauth, &OAuth2::clientSecretChanged, this, &Plugin::writeSecrets);
+            connect(&api.oauth, &OAuth2::tokensChanged,       this, &Plugin::writeSecrets);
+
+            emit initialized();
+        });
+
+        job->start();
+    })
+    .onCanceled(this, [] {
+        WARN << "Cancelled plugin initialization.";
+    })
+    .onFailed(this, [](const QUnhandledException &que) {
+        if (que.exception())
+            rethrow_exception(que.exception());
+        else
+            throw runtime_error("QUnhandledException::exception() returned nullptr.");
+    })
+    .onFailed(this, [](const exception &e) {
+        CRIT << "Exception while initializing plugin:" << e.what();
+    })
+    .onFailed(this, [] {
+        CRIT << "Unknown exception while initializing plugin.";
+    });
+}
+
+void Plugin::writeSavedSearches()
+{
+    auto s = settings();
+    s->beginGroup(ck_saved_searches);
+    for (const auto &handler : search_handlers_)
+    {
+        const auto saved_searches = handler->savedSearches();
+
+        s->beginWriteArray(handler->id().section(u'.', 1));  // drop "github."
+        CRIT << s->fileName() << s->group() <<handler->id();
+        for (size_t i = 0; i < saved_searches.size(); ++i)
+        {
+            s->setArrayIndex(i);
+            s->setValue("title", saved_searches.at(i).first),
+                s->setValue("query", saved_searches.at(i).second);
+        }
+        s->endArray();
+    }
+}
+
+void Plugin::readSavedSearches()
+{
     if (auto s = settings();
         s->childGroups().contains(ck_saved_searches))
     {
@@ -62,76 +144,27 @@ Plugin::Plugin()
         for (const auto &handler : search_handlers_)
             handler->setSavedSearches(handler->defaultSearches());
     }
-
-    // Write saved searches on changes
-
-    const auto writeSavedSearches = [this]{
-        auto s = settings();
-        s->beginGroup(ck_saved_searches);
-        for (const auto &handler : search_handlers_)
-        {
-            const auto saved_searches = handler->savedSearches();
-
-            s->beginWriteArray(handler->id().section(u'.', 1));  // drop "github."
-            CRIT << s->fileName() << s->group() <<handler->id();
-            for (size_t i = 0; i < saved_searches.size(); ++i)
-            {
-                s->setArrayIndex(i);
-                s->setValue("title", saved_searches.at(i).first),
-                s->setValue("query", saved_searches.at(i).second);
-            }
-            s->endArray();
-        }
-    };
-
-    for (const auto &handler : search_handlers_)
-        connect(handler.get(), &GithubSearchHandler::savedSearchesChanged,
-                this, writeSavedSearches);
-
-    // Write the secrets on changes
-    const auto writeAuthConfig = [this]{
-        writeKeychain(kck_secrets,
-                      QStringList{
-                          api.oauth.clientId(),
-                          api.oauth.clientSecret(),
-                          api.oauth.accessToken()
-                      }.join(QChar::Tabulation),
-                      [] {
-                          DEBG << "Successfully wrote GitHub OAuth credentials to keychain.";
-                      },
-                      [](const QString &error){
-                          WARN << "Failed to write GitHub OAuth credentials to keychain:" << error;
-                      });
-    };
-
-    const auto connect_oauth_signals = [this, writeAuthConfig]{
-        connect(&api.oauth, &OAuth2::clientIdChanged, this, writeAuthConfig);
-        connect(&api.oauth, &OAuth2::clientSecretChanged, this, writeAuthConfig);
-        connect(&api.oauth, &OAuth2::tokensChanged, this, writeAuthConfig);
-    };
-
-    // Read the secrets
-    readKeychain(kck_secrets,
-                 [this, connect_oauth_signals](const QString &value){
-                     if (auto secrets = value.split(QChar::Tabulation);
-                         secrets.size() == 3)
-                     {
-                         api.oauth.setClientId(secrets[0]);
-                         api.oauth.setClientSecret(secrets[1]);
-                         api.oauth.setTokens(secrets[2]);
-                         DEBG << "Successfully read GitHub OAuth credentials from keychain.";
-                     }
-                     else
-                         WARN << "Unexpected format of the GitHub OAuth credentials read from keychain.";
-                     connect_oauth_signals();
-                 },
-                 [connect_oauth_signals](const QString & error){
-                     WARN << "Failed to read GitHub OAuth credentials from keychain:" << error;
-                     connect_oauth_signals();
-                 });
 }
 
-Plugin::~Plugin() = default;
+void Plugin::writeSecrets()
+{
+    QStringList secrets = {api.oauth.clientId(),
+                           api.oauth.clientSecret(),
+                           api.oauth.accessToken()};
+
+    auto job = new QKeychain::WritePasswordJob(keychain_service, this);  // Deletes itself
+    job->setKey(keychain_key);
+    job->setTextData(secrets.join(QChar::Tabulation));
+
+    connect(job, &QKeychain::Job::finished, this, [=] {
+        if (job->error())
+            WARN << "Failed to write secrets to keychain:" << job->errorString();
+        else
+            DEBG << "Successfully wrote secrets to keychain.";
+    });
+
+    job->start();
+}
 
 vector<Extension*> Plugin::extensions()
 {

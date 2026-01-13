@@ -1,10 +1,12 @@
 {
   "authors": ["@manuelschneid3r"],
+  "credits" : "qtkeychain BSD-3-clause",
   "description": "Search GitHub",
   "description[de]": "GitHub durchsuchen",
   "license": "MIT",
   "maintainers": ["@manuelschneid3r"],
   "name": "GitHub",
   "url": "https://github.com/albertlauncher/albert-plugin-github",
-  "readme_url": "https://github.com/albertlauncher/albert-plugin-github/blob/main/README.md"
+  "readme_url": "https://github.com/albertlauncher/albert-plugin-github/blob/main/README.md",
+  "runtime_dependencies": ["qtkeychain"]
 }

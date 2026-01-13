@@ -3,8 +3,15 @@ project(github VERSION 1.0.1)
 
 find_package(Albert REQUIRED)
 find_package(QCoro6 REQUIRED COMPONENTS Core Network)
+find_package(Qt6Keychain REQUIRED)
 
 albert_plugin(
-    QT Widgets Network
-    LINK PRIVATE QCoro6::Core QCoro6::Network
+    QT
+        Concurrent
+        Network
+        Widgets
+    LINK PRIVATE
+        QCoro6::Core
+        QCoro6::Network
+        $<BUILD_LOCAL_INTERFACE:qt6keychain>
 )

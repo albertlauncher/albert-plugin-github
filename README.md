@@ -49,3 +49,4 @@ For Albert this means you get faster average response times.
 
 - Uses the [GitHub Web API](https://docs.github.com/en/rest) (API version: v2022-11-28).
 - See the used endpoints and scopes in `github.h`.
+- Uses [QtKeychain](https://github.com/frankosterfeld/qtkeychain) to store secrets.
