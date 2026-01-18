@@ -15,7 +15,7 @@
 #include <QThread>
 #include <QtConcurrentRun>
 #include <albert/app.h>
-#include <albert/iconutil.h>
+#include <albert/icon.h>
 #include <albert/logging.h>
 #include <albert/matcher.h>
 #include <albert/networkutil.h>
@@ -210,7 +210,7 @@ vector<RankItem> Plugin::rankItems(QueryContext &ctx)
                 });
 
                 r.emplace_back(StandardItem::make(t, t, ::move(_q),
-                                                  []{ return makeImageIcon(u":github"_s); },
+                                                  []{ return Icon::image(u":github"_s); },
                                                   ::move(actions)),
                                m);
             }

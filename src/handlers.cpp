@@ -11,7 +11,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QThread>
-#include <albert/iconutil.h>
+#include <albert/icon.h>
 #include <albert/logging.h>
 #include <albert/matcher.h>
 #include <albert/networkutil.h>
@@ -27,14 +27,14 @@ using namespace albert;
 using namespace github;
 using namespace std;
 
-static unique_ptr<Icon> makeGithubIcon() { return makeImageIcon(u":github"_s); }
+static unique_ptr<Icon> makeGithubIcon() { return Icon::image(u":github"_s); }
 
 static shared_ptr<Item> makeErrorItem(const QString &error)
 {
     WARN << error;
-    return StandardItem::make(u"notify"_s, u"GitHub"_s, error,
-                              [] { return makeComposedIcon(makeGithubIcon(),
-                                                           makeStandardIcon(MessageBoxWarning)); });
+    return StandardItem::make(u"notify"_s, u"GitHub"_s, error, [] {
+        return Icon::composed(makeGithubIcon(), Icon::standard(Icon::MessageBoxWarning));
+    });
 }
 
 GithubSearchHandler::GithubSearchHandler(const QString &id,

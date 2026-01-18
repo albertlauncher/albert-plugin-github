@@ -6,7 +6,7 @@
 #include <QFile>
 #include <albert/app.h>
 #include <albert/download.h>
-#include <albert/iconutil.h>
+#include <albert/icon.h>
 #include <albert/logging.h>
 #include <albert/networkutil.h>
 #include <albert/systemutil.h>
@@ -15,7 +15,7 @@ using namespace albert;
 using namespace std;
 
 inline static unique_ptr<Icon> placeHolderIcon()
-{ return makeIconifiedIcon(makeImageIcon(u":github"_s)); }
+{ return Icon::iconified(Icon::image(u":github"_s)); }
 
 GitHubItem::GitHubItem(const QString &id,
                        const QString &title,
@@ -47,7 +47,7 @@ unique_ptr<Icon> GitHubItem::icon() const
     else if (const auto icon_path = QDir(App::cacheLocation() / "github" / "icons")
                                         .filePath(QUrl(remote_icon_url_).fileName() + u".jpg"_s);
              QFile::exists(icon_path))
-        return makeIconifiedIcon(makeImageIcon(icon_path));
+        return Icon::iconified(Icon::image(icon_path));
 
     else
     {
@@ -56,11 +56,11 @@ unique_ptr<Icon> GitHubItem::icon() const
         connect(download_.get(), &Download::finished, this, [=, this]{
             if (const auto error = download_->error();
                 error.isNull())
-                icon_ = makeIconifiedIcon(makeImageIcon(download_->path()));
+                icon_ = Icon::iconified(Icon::image(download_->path()));
             else
             {
                 WARN << "Failed to download icon:" << error;
-                icon_ = makeImageIcon(u":github"_s);
+                icon_ = Icon::image(u":github"_s);
             }
 
             dataChanged();
