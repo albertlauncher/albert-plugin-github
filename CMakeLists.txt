@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(github VERSION 1.0.1)
+project(github VERSION 1.1.0)
 
 find_package(Albert REQUIRED)
 find_package(QCoro6 REQUIRED COMPONENTS Core Network)
