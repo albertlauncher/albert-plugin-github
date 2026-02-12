@@ -106,7 +106,6 @@ void Plugin::writeSavedSearches()
         const auto saved_searches = handler->savedSearches();
 
         s->beginWriteArray(handler->id().section(u'.', 1));  // drop "github."
-        CRIT << s->fileName() << s->group() <<handler->id();
         for (size_t i = 0; i < saved_searches.size(); ++i)
         {
             s->setArrayIndex(i);
