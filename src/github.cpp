@@ -111,6 +111,14 @@ QNetworkReply *RestApi::notifications() const
                                  {{u"all"_s, u"true"_s}}));
 }
 
+QNetworkReply *RestApi::starredRepositories(int per_page, int page) const
+{
+    // https://docs.github.com/en/rest/activity/starring#list-repositories-starred-by-the-authenticated-user
+    return network().get(request(u"/user/starred"_s,
+                                 {{u"per_page"_s, QString::number(per_page)},
+                                  {u"page"_s, QString::number(page)}}));
+}
+
 QNetworkReply *RestApi::searchUsers(const QString &query, int per_page, int page) const
 {
     // https://docs.github.com/en/rest/search/search#search-users

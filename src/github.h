@@ -35,6 +35,9 @@ public:
                                                     int per_page,
                                                     int page) const;
 
+    /// Requires ``repo`` scope
+    [[nodiscard]] QNetworkReply* starredRepositories(int per_page, int page) const;
+
     /// Requires no scopes (if public data is sufficient)
     [[nodiscard]] QNetworkReply* searchIssues(const QString &query,
                                               int per_page,

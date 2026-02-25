@@ -41,6 +41,7 @@ Plugin::Plugin()
     search_handlers_.emplace_back(make_unique<UserSearchHandler>(api));
     search_handlers_.emplace_back(make_unique<RepoSearchHandler>(api));
     search_handlers_.emplace_back(make_unique<IssueSearchHandler>(api));
+    search_handlers_.emplace_back(make_unique<StarredRepoHandler>(api));
 }
 
 Plugin::~Plugin() = default;
