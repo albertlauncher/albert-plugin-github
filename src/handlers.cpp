@@ -185,6 +185,76 @@ vector<pair<QString, QString>> RepoSearchHandler::defaultSearches() const
 
 //--------------------------------------------------------------------------------------------------
 
+StarredRepoHandler::StarredRepoHandler(const github::RestApi &api):
+    GithubSearchHandler(u"github.starred"_s,
+                        Plugin::tr("GitHub starred repositories"),
+                        Plugin::tr("Repositories you starred"),
+                        u"ghs"_s,
+                        api)
+{}
+
+QNetworkReply *StarredRepoHandler::requestSearch(const QString &, uint page) const
+{
+    return api_.starredRepositories(10, static_cast<int>(page));
+}
+
+shared_ptr<Item> StarredRepoHandler::parseItem(const QJsonObject &o) const
+{
+    return RepositoryItem::fromJson(o);
+}
+
+vector<pair<QString, QString>> StarredRepoHandler::defaultSearches() const
+{
+    return {
+        { Plugin::tr("My starred repositories"), QString{} }
+    };
+}
+
+AsyncItemGenerator StarredRepoHandler::items(QueryContext &ctx)
+{
+    try {
+        for (auto page = 1;; ++page)
+        {
+            co_await qCoro(rate_limiter_.acquire().get(), &Acquire::granted);
+
+            if (!ctx.isValid())
+                co_return;
+
+            unique_ptr<QNetworkReply> reply(requestSearch({}, page));
+            DEBG << "Fetch" << reply->request().url();
+            co_await qCoro(reply.get()).waitForFinished();
+
+            const auto var = RestApi::parseJson(*reply);
+
+            if (holds_alternative<QJsonDocument>(var))
+            {
+                const auto arr = get<QJsonDocument>(var).array();
+
+                auto v = arr | views::transform([this](const auto &val)
+                                                { return parseItem(val.toObject()); });
+
+                vector<std::shared_ptr<albert::Item>> items(begin(v), end(v));
+
+                if (items.empty())
+                    co_return; // end pagination
+
+                co_yield ::move(items);
+            }
+            else
+            {
+                vector<std::shared_ptr<albert::Item>> items;
+                items.push_back(makeErrorItem(get<QString>(var)));
+                co_yield ::move(items);
+                co_return;
+            }
+        }
+    } catch (...) {
+        CRIT << "EXCEP";
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+
 IssueSearchHandler::IssueSearchHandler(const github::RestApi &api):
     GithubSearchHandler(u"github.issues"_s,
                         Plugin::tr("GitHub issues"),
