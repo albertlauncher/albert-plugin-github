@@ -1,4 +1,4 @@
-// Copyright (c) 2025-2025 Manuel Schneider
+// Copyright (c) 2025-2026 Manuel Schneider
 
 #pragma once
 #include <albert/oauth.h>
@@ -14,15 +14,14 @@ namespace github
 class RestApi
 {
 public:
-
     RestApi();
 
     uint rateLimit() const;
 
-    /// Requiress ``user`` scope
+    /// Requiress `user` scope
     [[nodiscard]] QNetworkReply *user() const;
 
-    /// Requires the ``notifications`` or ``repo`` scopes.
+    /// Requires the `notifications` or `repo` scopes.
     [[nodiscard]] QNetworkReply *notifications() const;
 
     /// Requires no scopes (if public data is sufficient)
@@ -51,12 +50,5 @@ private:
     QNetworkRequest request(const QString &, const QUrlQuery &) const;
 
 };
-
-
-
-
-
-
-
 
 }
