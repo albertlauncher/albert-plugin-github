@@ -28,7 +28,7 @@ public:
     QWidget* buildConfigWidget() override;
     QString defaultTrigger() const override;
     void handle(const QUrl &) override;
-    std::vector<albert::RankItem> rankItems(albert::QueryContext &) override;
+    std::vector<albert::RankItem> rankItems(albert::QueryContext) override;
 
     void writeSavedSearches();
     void readSavedSearches();

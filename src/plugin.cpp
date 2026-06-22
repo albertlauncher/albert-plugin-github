@@ -21,7 +21,6 @@
 #include <albert/networkutil.h>
 #include <albert/standarditem.h>
 #include <albert/systemutil.h>
-#include <albert/usagescoring.h>
 #include <qt6keychain/keychain.h>
 ALBERT_LOGGING_CATEGORY("github")
 using namespace Qt::StringLiterals;
@@ -185,7 +184,7 @@ void Plugin::handle(const QUrl &url)
     app().showSettings(id());
 }
 
-vector<RankItem> Plugin::rankItems(QueryContext &ctx)
+vector<RankItem> Plugin::rankItems(QueryContext ctx)
 {
     vector<RankItem> r;
     Matcher matcher(ctx);

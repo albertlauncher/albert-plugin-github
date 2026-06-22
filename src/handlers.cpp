@@ -62,13 +62,13 @@ QString GithubSearchHandler::trigger()
     return trigger_;
 }
 
-void GithubSearchHandler::setTrigger(const QString &t)
+void GithubSearchHandler::onTriggerChanged(const QString &t)
 {
     lock_guard lock(mtx);
     trigger_ = t;
 }
 
-AsyncItemGenerator GithubSearchHandler::items(QueryContext &ctx)
+AsyncItemGenerator GithubSearchHandler::items(QueryContext ctx)
 {
     try {
         for (auto page = 1;; ++page)
@@ -144,7 +144,7 @@ shared_ptr<Item> UserSearchHandler::parseItem(const QJsonObject &o) const
 
 vector<pair<QString, QString>> UserSearchHandler::defaultSearches() const { return {}; }
 
-AsyncItemGenerator UserSearchHandler::userItem(QueryContext &ctx)
+AsyncItemGenerator UserSearchHandler::userItem(QueryContext ctx)
 {
     co_await api_.rate_limiter.acquire();
 
@@ -165,7 +165,7 @@ AsyncItemGenerator UserSearchHandler::userItem(QueryContext &ctx)
     }
 }
 
-AsyncItemGenerator UserSearchHandler::items(QueryContext &ctx)
+AsyncItemGenerator UserSearchHandler::items(QueryContext ctx)
 {
     if (ctx.query().isEmpty() && api_.oauth.state() == OAuth2::State::Granted)
         return userItem(ctx);
