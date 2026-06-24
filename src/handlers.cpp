@@ -1,6 +1,6 @@
 // Copyright (c) 2025-2025 Manuel Schneider
 
-#include "github.h"
+#include "api.h"
 #include "handlers.h"
 #include "items.h"
 #include "plugin.h"
@@ -24,7 +24,6 @@
 using namespace Qt::StringLiterals;
 using namespace albert::detail;
 using namespace albert;
-using namespace github;
 using namespace std;
 
 static unique_ptr<Icon> makeGithubIcon() { return Icon::image(u":github"_s); }
@@ -41,7 +40,7 @@ GithubSearchHandler::GithubSearchHandler(const QString &id,
                                          const QString &name,
                                          const QString &description,
                                          const QString &defaultTrigger,
-                                         RestApi &api)
+                                         API &api)
     : id_(id)
     , name_(name)
     , description_(description)
@@ -83,7 +82,7 @@ AsyncItemGenerator GithubSearchHandler::items(QueryContext &ctx)
             DEBG << "Fetch" << reply->request().url();
             co_await qCoro(reply.get()).waitForFinished();
 
-            if (const auto var = RestApi::parseJson(*reply);
+            if (const auto var = API::parseJson(*reply);
                 holds_alternative<QJsonDocument>(var))
             {
                 auto v = get<QJsonDocument>(var)["items"_L1].toArray()
@@ -129,7 +128,7 @@ void GithubSearchHandler::setSavedSearches(const vector<pair<QString, QString>> 
 
 //--------------------------------------------------------------------------------------------------
 
-UserSearchHandler::UserSearchHandler(github::RestApi &api):
+UserSearchHandler::UserSearchHandler(API &api):
     GithubSearchHandler(u"github.users"_s,
                         Plugin::tr("GitHub users"),
                         Plugin::tr("Search GitHub users"),
@@ -147,7 +146,7 @@ vector<pair<QString, QString>> UserSearchHandler::defaultSearches() const { retu
 
 //--------------------------------------------------------------------------------------------------
 
-RepoSearchHandler::RepoSearchHandler(github::RestApi &api):
+RepoSearchHandler::RepoSearchHandler(API &api):
     GithubSearchHandler(u"github.repositories"_s,
                         Plugin::tr("GitHub repositories"),
                         Plugin::tr("Search GitHub repositories"),
@@ -181,7 +180,7 @@ vector<pair<QString, QString>> RepoSearchHandler::defaultSearches() const
 
 //--------------------------------------------------------------------------------------------------
 
-IssueSearchHandler::IssueSearchHandler(github::RestApi &api):
+IssueSearchHandler::IssueSearchHandler(API &api):
     GithubSearchHandler(u"github.issues"_s,
                         Plugin::tr("GitHub issues"),
                         Plugin::tr("Search GitHub issues"),

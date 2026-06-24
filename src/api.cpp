@@ -1,6 +1,6 @@
 // Copyright (c) 2025-2025 Manuel Schneider
 
-#include "github.h"
+#include "api.h"
 #include <QCoreApplication>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -13,7 +13,6 @@
 #include <albert/networkutil.h>
 using namespace Qt::StringLiterals;
 using namespace albert;
-using namespace github;
 using namespace std;
 
 namespace
@@ -29,7 +28,7 @@ static const auto oauth_token_url = u"https://github.com/login/oauth/access_toke
 // -------------------------------------------------------------------------------------------------
 
 
-variant<QJsonDocument, QString> RestApi::parseJson(QNetworkReply &reply)
+variant<QJsonDocument, QString> API::parseJson(QNetworkReply &reply)
 {
     const QByteArray data = reply.readAll();
 
@@ -64,7 +63,7 @@ variant<QJsonDocument, QString> RestApi::parseJson(QNetworkReply &reply)
     return u"%1: %2"_s.arg(reply.errorString(), QString::fromUtf8(data));
 }
 
-QNetworkRequest RestApi::request(const QString &path, const QUrlQuery &query)
+QNetworkRequest API::request(const QString &path, const QUrlQuery &query)
 {
     QUrl url(u"https://api.github.com"_s);
     url.setPath(path);
@@ -84,7 +83,7 @@ QNetworkRequest RestApi::request(const QString &path, const QUrlQuery &query)
 
 // -------------------------------------------------------------------------------------------------
 
-RestApi::RestApi()
+API::API()
 {
     oauth.setAuthUrl(oauth_auth_url);
     oauth.setScope(oauth_scope);
@@ -100,20 +99,20 @@ RestApi::RestApi()
     });
 }
 
-QNetworkReply *RestApi::user()
+QNetworkReply *API::user()
 {
     // https://docs.github.com/en/rest/users/users#get-the-authenticated-user
     return network().get(request(u"/user"_s, {}));
 }
 
-QNetworkReply *RestApi::notifications()
+QNetworkReply *API::notifications()
 {
     // https://docs.github.com/en/rest/activity/notifications#list-notifications-for-the-authenticated-user
     return network().get(request(u"/notifications"_s,
                                  {{u"all"_s, u"true"_s}}));
 }
 
-QNetworkReply *RestApi::searchUsers(const QString &query, int per_page, int page)
+QNetworkReply *API::searchUsers(const QString &query, int per_page, int page)
 {
     // https://docs.github.com/en/rest/search/search#search-users
     return network().get(request(u"/search/users"_s,
@@ -122,7 +121,7 @@ QNetworkReply *RestApi::searchUsers(const QString &query, int per_page, int page
                                   {u"page"_s, QString::number(page)}}));
 }
 
-QNetworkReply *RestApi::searchIssues(const QString &query, int per_page, int page)
+QNetworkReply *API::searchIssues(const QString &query, int per_page, int page)
 {
     // https://docs.github.com/en/rest/search/search#search-repositories
     return network().get(request(u"/search/issues"_s,
@@ -132,7 +131,7 @@ QNetworkReply *RestApi::searchIssues(const QString &query, int per_page, int pag
                                   {u"advanced_search"_s, u"true"_s}}));
 }
 
-QNetworkReply *RestApi::searchRepositories(const QString &query, int per_page, int page)
+QNetworkReply *API::searchRepositories(const QString &query, int per_page, int page)
 {
     // https://docs.github.com/en/rest/search/search#search-issues-and-pull-requests
     return network().get(request(u"/search/repositories"_s,
@@ -141,5 +140,5 @@ QNetworkReply *RestApi::searchRepositories(const QString &query, int per_page, i
                                   {u"page"_s, QString::number(page)}}));
 }
 
-QNetworkReply * RestApi::getLinkData(const QString &url)
+QNetworkReply * API::getLinkData(const QString &url)
 { return network().get(request(url, {})); }

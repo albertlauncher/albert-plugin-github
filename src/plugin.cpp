@@ -26,7 +26,6 @@
 ALBERT_LOGGING_CATEGORY("github")
 using namespace Qt::StringLiterals;
 using namespace albert;
-using namespace github;
 using namespace std;
 
 namespace

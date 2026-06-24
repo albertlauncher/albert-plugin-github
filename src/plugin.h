@@ -1,7 +1,7 @@
 // Copyright (c) 2025-2025 Manuel Schneider
 
 #pragma once
-#include "github.h"
+#include "api.h"
 #include <albert/extensionplugin.h>
 #include <albert/oauth.h>
 #include <albert/globalqueryhandler.h>
@@ -34,7 +34,7 @@ public:
     void readSavedSearches();
     void writeSecrets();
 
-    github::RestApi api;
+    API api;
     std::vector<std::unique_ptr<GithubSearchHandler>> search_handlers_;
 
 };

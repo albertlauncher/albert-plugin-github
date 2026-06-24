@@ -9,13 +9,10 @@ class QNetworkRequest;
 class QString;
 class QUrlQuery;
 
-namespace github
-{
-
-class RestApi
+class API
 {
 public:
-    RestApi();
+    API();
 
     /// Requiress `user` scope
     [[nodiscard]] QNetworkReply *user();
@@ -44,5 +41,3 @@ private:
     QNetworkRequest request(const QString &, const QUrlQuery &);
 
 };
-
-}

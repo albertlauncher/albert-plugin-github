@@ -3,13 +3,12 @@
 #pragma once
 #include <QObject>
 #include <albert/asyncgeneratorqueryhandler.h>
-#include <albert/ratelimiter.h>
 #include <mutex>
 class Plugin;
 class QJsonArray;
 class QNetworkReply;
+class API;
 namespace albert { class Item; }
-namespace github { class RestApi; }
 
 class GithubSearchHandler : public QObject, public albert::AsyncGeneratorQueryHandler
 {
@@ -20,7 +19,7 @@ public:
                         const QString &name,
                         const QString &description,
                         const QString &defaultTrigger,
-                        github::RestApi &);
+                        API &);
 
     QString id() const override;
     QString name() const override;
@@ -43,7 +42,7 @@ protected:
     const QString name_;
     const QString description_;
     const QString default_trigger_;
-    github::RestApi &api_;
+    API &api_;
 
     // Things accessesd by main and query threads
     mutable std::mutex mtx;
@@ -62,7 +61,7 @@ signals:
 class UserSearchHandler : public GithubSearchHandler
 {
 public:
-    UserSearchHandler(github::RestApi&);
+    UserSearchHandler(API&);
     QNetworkReply *requestSearch(const QString &query, uint page) const override;
     std::shared_ptr<albert::Item> parseItem(const QJsonObject &) const override;
     std::vector<std::pair<QString, QString>> defaultSearches() const override;
@@ -72,7 +71,7 @@ public:
 class RepoSearchHandler : public GithubSearchHandler
 {
 public:
-    RepoSearchHandler(github::RestApi&);
+    RepoSearchHandler(API&);
     QNetworkReply *requestSearch(const QString &query, uint page) const override;
     std::shared_ptr<albert::Item> parseItem(const QJsonObject &) const override;
     std::vector<std::pair<QString, QString>> defaultSearches() const override;
@@ -82,7 +81,7 @@ public:
 class IssueSearchHandler : public GithubSearchHandler
 {
 public:
-    IssueSearchHandler(github::RestApi&);
+    IssueSearchHandler(API&);
     QNetworkReply *requestSearch(const QString &query, uint page) const override;
     std::shared_ptr<albert::Item> parseItem(const QJsonObject &) const override;
     std::vector<std::pair<QString, QString>> defaultSearches() const override;
