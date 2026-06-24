@@ -2,6 +2,7 @@
 
 #pragma once
 #include <albert/oauth.h>
+#include <albert/ratelimiter.h>
 class QJsonDocument;
 class QNetworkReply;
 class QNetworkRequest;
@@ -16,38 +17,31 @@ class RestApi
 public:
     RestApi();
 
-    uint rateLimit() const;
-
     /// Requiress `user` scope
-    [[nodiscard]] QNetworkReply *user() const;
+    [[nodiscard]] QNetworkReply *user();
 
     /// Requires the `notifications` or `repo` scopes.
-    [[nodiscard]] QNetworkReply *notifications() const;
+    [[nodiscard]] QNetworkReply *notifications();
 
     /// Requires no scopes (if public data is sufficient)
-    [[nodiscard]] QNetworkReply* searchUsers(const QString &query,
-                                             int per_page,
-                                             int page) const;
+    [[nodiscard]] QNetworkReply *searchUsers(const QString &query, int per_page, int page);
 
     /// Requires no scopes (if public data is sufficient)
-    [[nodiscard]] QNetworkReply* searchRepositories(const QString &query,
-                                                    int per_page,
-                                                    int page) const;
+    [[nodiscard]] QNetworkReply *searchRepositories(const QString &query, int per_page, int page);
 
     /// Requires no scopes (if public data is sufficient)
-    [[nodiscard]] QNetworkReply* searchIssues(const QString &query,
-                                              int per_page,
-                                              int page) const;
+    [[nodiscard]] QNetworkReply *searchIssues(const QString &query, int per_page, int page);
 
-    [[nodiscard]] QNetworkReply *getLinkData(const QString & url) const;
+    [[nodiscard]] QNetworkReply *getLinkData(const QString & url);
 
     static std::variant<QJsonDocument, QString> parseJson(QNetworkReply &reply);
 
     albert::OAuth2 oauth;
+    albert::detail::RateLimiter rate_limiter;
 
 private:
 
-    QNetworkRequest request(const QString &, const QUrlQuery &) const;
+    QNetworkRequest request(const QString &, const QUrlQuery &);
 
 };
 

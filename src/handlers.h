@@ -16,12 +16,11 @@ class GithubSearchHandler : public QObject, public albert::AsyncGeneratorQueryHa
     Q_OBJECT
 
 public:
-
     GithubSearchHandler(const QString &id,
                         const QString &name,
                         const QString &description,
                         const QString &defaultTrigger,
-                        const github::RestApi&);
+                        github::RestApi &);
 
     QString id() const override;
     QString name() const override;
@@ -44,8 +43,7 @@ protected:
     const QString name_;
     const QString description_;
     const QString default_trigger_;
-    const github::RestApi &api_;
-    albert::detail::RateLimiter rate_limiter_;
+    github::RestApi &api_;
 
     // Things accessesd by main and query threads
     mutable std::mutex mtx;
@@ -64,7 +62,7 @@ signals:
 class UserSearchHandler : public GithubSearchHandler
 {
 public:
-    UserSearchHandler(const github::RestApi&);
+    UserSearchHandler(github::RestApi&);
     QNetworkReply *requestSearch(const QString &query, uint page) const override;
     std::shared_ptr<albert::Item> parseItem(const QJsonObject &) const override;
     std::vector<std::pair<QString, QString>> defaultSearches() const override;
@@ -74,7 +72,7 @@ public:
 class RepoSearchHandler : public GithubSearchHandler
 {
 public:
-    RepoSearchHandler(const github::RestApi&);
+    RepoSearchHandler(github::RestApi&);
     QNetworkReply *requestSearch(const QString &query, uint page) const override;
     std::shared_ptr<albert::Item> parseItem(const QJsonObject &) const override;
     std::vector<std::pair<QString, QString>> defaultSearches() const override;
@@ -84,7 +82,7 @@ public:
 class IssueSearchHandler : public GithubSearchHandler
 {
 public:
-    IssueSearchHandler(const github::RestApi&);
+    IssueSearchHandler(github::RestApi&);
     QNetworkReply *requestSearch(const QString &query, uint page) const override;
     std::shared_ptr<albert::Item> parseItem(const QJsonObject &) const override;
     std::vector<std::pair<QString, QString>> defaultSearches() const override;

@@ -64,7 +64,7 @@ variant<QJsonDocument, QString> RestApi::parseJson(QNetworkReply &reply)
     return u"%1: %2"_s.arg(reply.errorString(), QString::fromUtf8(data));
 }
 
-QNetworkRequest RestApi::request(const QString &path, const QUrlQuery &query) const
+QNetworkRequest RestApi::request(const QString &path, const QUrlQuery &query)
 {
     QUrl url(u"https://api.github.com"_s);
     url.setPath(path);
@@ -76,6 +76,8 @@ QNetworkRequest RestApi::request(const QString &path, const QUrlQuery &query) co
 
     if (oauth.state() == OAuth2::State::Granted)
         request.setRawHeader("Authorization", "Bearer " + oauth.accessToken().toUtf8());
+
+    rate_limiter.limit(oauth.state() == OAuth2::State::Granted ? 2000ms : 6000ms);
 
     return request;
 }
@@ -98,20 +100,20 @@ RestApi::RestApi()
     });
 }
 
-QNetworkReply *RestApi::user() const
+QNetworkReply *RestApi::user()
 {
     // https://docs.github.com/en/rest/users/users#get-the-authenticated-user
     return network().get(request(u"/user"_s, {}));
 }
 
-QNetworkReply *RestApi::notifications() const
+QNetworkReply *RestApi::notifications()
 {
     // https://docs.github.com/en/rest/activity/notifications#list-notifications-for-the-authenticated-user
     return network().get(request(u"/notifications"_s,
                                  {{u"all"_s, u"true"_s}}));
 }
 
-QNetworkReply *RestApi::searchUsers(const QString &query, int per_page, int page) const
+QNetworkReply *RestApi::searchUsers(const QString &query, int per_page, int page)
 {
     // https://docs.github.com/en/rest/search/search#search-users
     return network().get(request(u"/search/users"_s,
@@ -120,7 +122,7 @@ QNetworkReply *RestApi::searchUsers(const QString &query, int per_page, int page
                                   {u"page"_s, QString::number(page)}}));
 }
 
-QNetworkReply *RestApi::searchIssues(const QString &query, int per_page, int page) const
+QNetworkReply *RestApi::searchIssues(const QString &query, int per_page, int page)
 {
     // https://docs.github.com/en/rest/search/search#search-repositories
     return network().get(request(u"/search/issues"_s,
@@ -130,7 +132,7 @@ QNetworkReply *RestApi::searchIssues(const QString &query, int per_page, int pag
                                   {u"advanced_search"_s, u"true"_s}}));
 }
 
-QNetworkReply *RestApi::searchRepositories(const QString &query, int per_page, int page) const
+QNetworkReply *RestApi::searchRepositories(const QString &query, int per_page, int page)
 {
     // https://docs.github.com/en/rest/search/search#search-issues-and-pull-requests
     return network().get(request(u"/search/repositories"_s,
@@ -139,7 +141,5 @@ QNetworkReply *RestApi::searchRepositories(const QString &query, int per_page, i
                                   {u"page"_s, QString::number(page)}}));
 }
 
-QNetworkReply * RestApi::getLinkData(const QString &url) const
+QNetworkReply * RestApi::getLinkData(const QString &url)
 { return network().get(request(url, {})); }
-
-uint RestApi::rateLimit() const { return oauth.state() == OAuth2::State::Granted ? 2000 : 6000; }
