@@ -65,6 +65,8 @@ public:
     QNetworkReply *requestSearch(const QString &query, uint page) const override;
     std::shared_ptr<albert::Item> parseItem(const QJsonObject &) const override;
     std::vector<std::pair<QString, QString>> defaultSearches() const override;
+    albert::AsyncItemGenerator userItem(albert::QueryContext&);
+    albert::AsyncItemGenerator items(albert::QueryContext&) override;
 };
 
 

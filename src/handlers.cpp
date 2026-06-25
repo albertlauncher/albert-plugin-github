@@ -80,7 +80,7 @@ AsyncItemGenerator GithubSearchHandler::items(QueryContext &ctx)
 
             unique_ptr<QNetworkReply> reply(requestSearch(ctx, page));
             DEBG << "Fetch" << reply->request().url();
-            co_await qCoro(reply.get()).waitForFinished();
+            co_await reply.get();
 
             if (const auto var = API::parseJson(*reply);
                 holds_alternative<QJsonDocument>(var))
@@ -143,6 +143,35 @@ shared_ptr<Item> UserSearchHandler::parseItem(const QJsonObject &o) const
 { return UserItem::fromJson(o); }
 
 vector<pair<QString, QString>> UserSearchHandler::defaultSearches() const { return {}; }
+
+AsyncItemGenerator UserSearchHandler::userItem(QueryContext &ctx)
+{
+    co_await api_.rate_limiter.acquire();
+
+    if (!ctx.isValid())
+        co_return;
+
+    unique_ptr<QNetworkReply> reply(api_.user());
+    DEBG << "Fetch" << reply->request().url();
+    co_await reply.get();
+
+    if (const auto var = API::parseJson(*reply);
+        holds_alternative<QJsonDocument>(var))
+        co_yield {UserItem::fromJson(get<QJsonDocument>(var).object())};
+    else
+    {
+        co_yield vector{makeErrorItem(get<QString>(var))};
+        co_return;
+    }
+}
+
+AsyncItemGenerator UserSearchHandler::items(QueryContext &ctx)
+{
+    if (ctx.query().isEmpty() && api_.oauth.state() == OAuth2::State::Granted)
+        return userItem(ctx);
+    else
+        return GithubSearchHandler::items(ctx);
+}
 
 //--------------------------------------------------------------------------------------------------
 
