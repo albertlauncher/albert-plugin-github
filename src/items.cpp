@@ -44,7 +44,7 @@ unique_ptr<Icon> GitHubItem::icon() const
     if (download_)
         return placeHolderIcon();
 
-    else if (const auto icon_path = QDir(App::cacheLocation() / "github" / "icons")
+    else if (const auto icon_path = QDir(app().cacheLocation() / "github" / "icons")
                                         .filePath(QUrl(remote_icon_url_).fileName() + u".jpg"_s);
              QFile::exists(icon_path))
         return Icon::iconified(Icon::image(icon_path));

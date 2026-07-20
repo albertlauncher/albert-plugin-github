@@ -183,7 +183,7 @@ QString Plugin::defaultTrigger() const { return u"gh "_s; }
 void Plugin::handle(const QUrl &url)
 {
     api.oauth.handleCallback(url);
-    App::instance().showSettings(id());
+    app().showSettings(id());
 }
 
 vector<RankItem> Plugin::rankItems(QueryContext &ctx)
@@ -201,7 +201,7 @@ vector<RankItem> Plugin::rankItems(QueryContext &ctx)
                 actions.emplace_back(
                     u"show"_s,
                     Plugin::tr("Show"),
-                    [=] { App::instance().show(_q + QChar::Space); },
+                    [=] { app().show(_q + QChar::Space); },
                     false);
 
                 actions.emplace_back(u"github"_s, Plugin::tr("Show on GitHub"), [=] {
