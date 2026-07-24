@@ -3,6 +3,7 @@
 #pragma once
 #include <albert/oauth.h>
 #include <albert/ratelimiter.h>
+#include <expected>
 class QJsonDocument;
 class QNetworkReply;
 class QNetworkRequest;
@@ -31,7 +32,7 @@ public:
 
     [[nodiscard]] QNetworkReply *getLinkData(const QString & url);
 
-    static std::variant<QJsonDocument, QString> parseJson(QNetworkReply &reply);
+    static std::expected<QJsonDocument, QString> parseJson(QNetworkReply &reply);
 
     albert::OAuth2 oauth;
     albert::detail::RateLimiter rate_limiter;

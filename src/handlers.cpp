@@ -82,10 +82,9 @@ AsyncItemGenerator GithubSearchHandler::items(QueryContext &ctx)
             DEBG << "Fetch" << reply->request().url();
             co_await qCoro(reply.get()).waitForFinished();  // TODO: QCoro>13 QCoroNetworkReply
 
-            if (const auto var = API::parseJson(*reply);
-                holds_alternative<QJsonDocument>(var))
+            if (const auto exp_doc = API::parseJson(*reply))
             {
-                auto v = get<QJsonDocument>(var)["items"_L1].toArray()
+                auto v = exp_doc->object()["items"_L1].toArray()
                          | views::transform([this](const auto &val)
                                             { return parseItem(val.toObject()); });
                 // TODO: GCC>13 yieling temporaries is fine
@@ -95,7 +94,7 @@ AsyncItemGenerator GithubSearchHandler::items(QueryContext &ctx)
             else
             {
                 // TODO: GCC>13 yieling temporaries is fine
-                vector<shared_ptr<Item>> items{makeErrorItem(get<QString>(var))};
+                vector<shared_ptr<Item>> items{makeErrorItem(exp_doc.error())};
                 co_yield ::move(items);
                 co_return;
             }
@@ -154,17 +153,16 @@ AsyncItemGenerator UserSearchHandler::userItem(QueryContext &ctx)
     DEBG << "Fetch" << reply->request().url();
     co_await qCoro(reply.get()).waitForFinished();  // TODO: QCoro>13 QCoroNetworkReply
 
-    if (const auto var = API::parseJson(*reply);
-        holds_alternative<QJsonDocument>(var))
+    if (const auto exp_doc = API::parseJson(*reply))
     {
         // TODO: GCC>13 yieling temporaries is fine
-        vector<shared_ptr<Item>> items{UserItem::fromJson(get<QJsonDocument>(var).object())};
+        vector<shared_ptr<Item>> items{UserItem::fromJson(exp_doc->object())};
         co_yield ::move(items);
     }
     else
     {
         // TODO: GCC>13 yieling temporaries is fine
-        vector<shared_ptr<Item>> items{makeErrorItem(get<QString>(var))};
+        vector<shared_ptr<Item>> items{makeErrorItem(exp_doc.error())};
         co_yield ::move(items);
         co_return;
     }

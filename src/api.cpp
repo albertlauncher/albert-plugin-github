@@ -28,7 +28,7 @@ static const auto oauth_token_url = u"https://github.com/login/oauth/access_toke
 // -------------------------------------------------------------------------------------------------
 
 
-variant<QJsonDocument, QString> API::parseJson(QNetworkReply &reply)
+expected<QJsonDocument, QString> API::parseJson(QNetworkReply &reply)
 {
     const QByteArray data = reply.readAll();
 
@@ -39,7 +39,7 @@ variant<QJsonDocument, QString> API::parseJson(QNetworkReply &reply)
     {
         if (parseError.error == QJsonParseError::NoError)
             return doc;
-        return u"JSON parse error: %1"_s.arg(parseError.errorString());
+        return unexpected(u"JSON parse error: %1"_s.arg(parseError.errorString()));
     }
 
     if (parseError.error == QJsonParseError::NoError && doc.isObject())
@@ -57,10 +57,10 @@ variant<QJsonDocument, QString> API::parseJson(QNetworkReply &reply)
                                             err[kfield].toString(),
                                             err[kcode].toString());
 
-        return message.isEmpty() ? QString::fromUtf8(data) : message;
+        return unexpected(message.isEmpty() ? QString::fromUtf8(data) : message);
     }
 
-    return u"%1: %2"_s.arg(reply.errorString(), QString::fromUtf8(data));
+    return unexpected(u"%1: %2"_s.arg(reply.errorString(), QString::fromUtf8(data)));
 }
 
 QNetworkRequest API::request(const QString &path, const QUrlQuery &query)
