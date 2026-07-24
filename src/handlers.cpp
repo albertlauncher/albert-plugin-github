@@ -89,14 +89,13 @@ AsyncItemGenerator GithubSearchHandler::items(QueryContext &ctx)
                          | views::transform([this](const auto &val)
                                             { return parseItem(val.toObject()); });
                 // TODO: GCC>13 yieling temporaries is fine
-                vector<std::shared_ptr<albert::Item>> items(begin(v), end(v));
+                vector<shared_ptr<Item>> items(begin(v), end(v));
                 co_yield ::move(items);
             }
             else
             {
                 // TODO: GCC>13 yieling temporaries is fine
-                vector<std::shared_ptr<albert::Item>> items;
-                items.push_back(makeErrorItem(get<QString>(var)));
+                vector<shared_ptr<Item>> items{makeErrorItem(get<QString>(var))};
                 co_yield ::move(items);
                 co_return;
             }
@@ -157,10 +156,16 @@ AsyncItemGenerator UserSearchHandler::userItem(QueryContext &ctx)
 
     if (const auto var = API::parseJson(*reply);
         holds_alternative<QJsonDocument>(var))
-        co_yield {UserItem::fromJson(get<QJsonDocument>(var).object())};
+    {
+        // TODO: GCC>13 yieling temporaries is fine
+        vector<shared_ptr<Item>> items{UserItem::fromJson(get<QJsonDocument>(var).object())};
+        co_yield ::move(items);
+    }
     else
     {
-        co_yield vector{makeErrorItem(get<QString>(var))};
+        // TODO: GCC>13 yieling temporaries is fine
+        vector<shared_ptr<Item>> items{makeErrorItem(get<QString>(var))};
+        co_yield ::move(items);
         co_return;
     }
 }
