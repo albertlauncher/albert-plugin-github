@@ -80,7 +80,7 @@ AsyncItemGenerator GithubSearchHandler::items(QueryContext &ctx)
 
             unique_ptr<QNetworkReply> reply(requestSearch(ctx, page));
             DEBG << "Fetch" << reply->request().url();
-            co_await reply.get();
+            co_await qCoro(reply.get()).waitForFinished();  // TODO: QCoro>13 QCoroNetworkReply
 
             if (const auto var = API::parseJson(*reply);
                 holds_alternative<QJsonDocument>(var))
@@ -153,7 +153,7 @@ AsyncItemGenerator UserSearchHandler::userItem(QueryContext &ctx)
 
     unique_ptr<QNetworkReply> reply(api_.user());
     DEBG << "Fetch" << reply->request().url();
-    co_await reply.get();
+    co_await qCoro(reply.get()).waitForFinished();  // TODO: QCoro>13 QCoroNetworkReply
 
     if (const auto var = API::parseJson(*reply);
         holds_alternative<QJsonDocument>(var))
