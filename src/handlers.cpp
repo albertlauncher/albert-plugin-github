@@ -68,42 +68,6 @@ void GithubSearchHandler::setTrigger(const QString &t)
     trigger_ = t;
 }
 
-AsyncItemGenerator GithubSearchHandler::items(QueryContext &ctx)
-{
-    try {
-        for (auto page = 1;; ++page)
-        {
-            co_await api_.rate_limiter.acquire();
-
-            if (!ctx.isValid())
-                co_return;
-
-            unique_ptr<QNetworkReply> reply(requestSearch(ctx, page));
-            DEBG << "Fetch" << reply->request().url();
-            co_await qCoro(reply.get()).waitForFinished();  // TODO: QCoro>13 QCoroNetworkReply
-
-            if (const auto exp_doc = API::parseJson(*reply))
-            {
-                auto v = exp_doc->object()["items"_L1].toArray()
-                         | views::transform([this](const auto &val)
-                                            { return parseItem(val.toObject()); });
-                // TODO: GCC>13 yieling temporaries is fine
-                vector<shared_ptr<Item>> items(begin(v), end(v));
-                co_yield ::move(items);
-            }
-            else
-            {
-                // TODO: GCC>13 yieling temporaries is fine
-                vector<shared_ptr<Item>> items{makeErrorItem(exp_doc.error())};
-                co_yield ::move(items);
-                co_return;
-            }
-        }
-    } catch (...) {
-        CRIT << "EXCEP";
-    }
-}
-
 vector<pair<QString, QString>> GithubSearchHandler::savedSearches() const
 {
     lock_guard lock(mtx);
@@ -134,46 +98,47 @@ UserSearchHandler::UserSearchHandler(API &api):
                         api)
 {}
 
-QNetworkReply *UserSearchHandler::requestSearch(const QString &query, uint page) const
-{ return api_.searchUsers(query, 10, page); }
-
-shared_ptr<Item> UserSearchHandler::parseItem(const QJsonObject &o) const
-{ return UserItem::fromJson(o); }
-
 vector<pair<QString, QString>> UserSearchHandler::defaultSearches() const { return {}; }
-
-AsyncItemGenerator UserSearchHandler::userItem(QueryContext &ctx)
-{
-    co_await api_.rate_limiter.acquire();
-
-    if (!ctx.isValid())
-        co_return;
-
-    unique_ptr<QNetworkReply> reply(api_.user());
-    DEBG << "Fetch" << reply->request().url();
-    co_await qCoro(reply.get()).waitForFinished();  // TODO: QCoro>13 QCoroNetworkReply
-
-    if (const auto exp_doc = API::parseJson(*reply))
-    {
-        // TODO: GCC>13 yieling temporaries is fine
-        vector<shared_ptr<Item>> items{UserItem::fromJson(exp_doc->object())};
-        co_yield ::move(items);
-    }
-    else
-    {
-        // TODO: GCC>13 yieling temporaries is fine
-        vector<shared_ptr<Item>> items{makeErrorItem(exp_doc.error())};
-        co_yield ::move(items);
-        co_return;
-    }
-}
 
 AsyncItemGenerator UserSearchHandler::items(QueryContext &ctx)
 {
     if (ctx.query().isEmpty() && api_.oauth.state() == OAuth2::State::Granted)
-        return userItem(ctx);
+    {
+        if (const auto obj = co_await api_.user())
+        {
+            vector<shared_ptr<Item>> items{UserItem::fromJson(*obj)};
+            co_yield ::move(items);  // TODO: GCC>13 yieling temporaries is fine
+        }
+        else
+        {
+            vector<shared_ptr<Item>> items{makeErrorItem(obj.error())};
+            co_yield ::move(items);  // TODO: GCC>13 yieling temporaries is fine
+        }
+    }
     else
-        return GithubSearchHandler::items(ctx);
+    {
+        auto gen = api_.searchUsers(ctx, 10);
+        for (auto it = co_await gen.begin(); it != gen.end(); co_await ++it)
+        {
+            if (!ctx.isValid())
+                co_return;
+
+            if (const auto arr = *it)
+            {
+                auto v = *arr
+                         | views::transform([](const auto &val)
+                                            { return UserItem::fromJson(val.toObject()); });
+                vector<shared_ptr<Item>> items(begin(v), end(v));
+                co_yield ::move(items);  // TODO: GCC>13 yieling temporaries is fine
+            }
+            else
+            {
+                vector<shared_ptr<Item>> items{makeErrorItem(arr.error())};
+                co_yield ::move(items); // TODO: GCC>13 yieling temporaries is fine
+                co_return;
+            }
+        }
+    }
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -186,11 +151,30 @@ RepoSearchHandler::RepoSearchHandler(API &api):
                         api)
 {}
 
-QNetworkReply *RepoSearchHandler::requestSearch(const QString &query, uint page) const
-{ return api_.searchRepositories(query, 10, page); }
+AsyncItemGenerator RepoSearchHandler::items(albert::QueryContext &ctx)
+{
+    auto gen = api_.searchRepositories(ctx, 10);
+    for (auto it = co_await gen.begin(); it != gen.end(); co_await ++it)
+    {
+        if (!ctx.isValid())
+            co_return;
 
-shared_ptr<Item> RepoSearchHandler::parseItem(const QJsonObject &o) const
-{ return RepositoryItem::fromJson(o); }
+        if (const auto arr = *it)
+        {
+            auto v = *arr
+                     | views::transform([](const auto &val)
+                                        { return RepositoryItem::fromJson(val.toObject()); });
+            vector<shared_ptr<Item>> items(begin(v), end(v));
+            co_yield ::move(items);  // TODO: GCC>13 yieling temporaries is fine
+        }
+        else
+        {
+            vector<shared_ptr<Item>> items{makeErrorItem(arr.error())};
+            co_yield ::move(items); // TODO: GCC>13 yieling temporaries is fine
+            co_return;
+        }
+    }
+}
 
 vector<pair<QString, QString>> RepoSearchHandler::defaultSearches() const
 {
@@ -220,11 +204,30 @@ IssueSearchHandler::IssueSearchHandler(API &api):
                         api)
 {}
 
-QNetworkReply *IssueSearchHandler::requestSearch(const QString &query, uint page) const
-{ return api_.searchIssues(query, 10, page); }
+AsyncItemGenerator IssueSearchHandler::items(albert::QueryContext &ctx)
+{
+    auto gen = api_.searchIssues(ctx, 10);
+    for (auto it = co_await gen.begin(); it != gen.end(); co_await ++it)
+    {
+        if (!ctx.isValid())
+            co_return;
 
-shared_ptr<Item> IssueSearchHandler::parseItem(const QJsonObject &o) const
-{ return IssueItem::fromJson(o); }
+        if (const auto arr = *it)
+        {
+            auto v = *arr
+                     | views::transform([](const auto &val)
+                                        { return IssueItem::fromJson(val.toObject()); });
+            vector<shared_ptr<Item>> items(begin(v), end(v));
+            co_yield ::move(items);  // TODO: GCC>13 yieling temporaries is fine
+        }
+        else
+        {
+            vector<shared_ptr<Item>> items{makeErrorItem(arr.error())};
+            co_yield ::move(items); // TODO: GCC>13 yieling temporaries is fine
+            co_return;
+        }
+    }
+}
 
 vector<pair<QString, QString>> IssueSearchHandler::defaultSearches() const
 {

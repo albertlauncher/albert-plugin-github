@@ -1,10 +1,13 @@
 // Copyright (c) 2025-2026 Manuel Schneider
 
 #pragma once
+#include <QCoroAsyncGenerator>
+#include <QCoroTask>
 #include <albert/oauth.h>
 #include <albert/ratelimiter.h>
 #include <expected>
-class QJsonDocument;
+class QJsonArray;
+class QJsonObject;
 class QNetworkReply;
 class QNetworkRequest;
 class QString;
@@ -15,30 +18,34 @@ class API
 public:
     API();
 
-    /// Requiress `user` scope
-    [[nodiscard]] QNetworkReply *user();
+    QCoro::Task<std::expected<QJsonObject, QString>> user();
 
-    /// Requires the `notifications` or `repo` scopes.
-    [[nodiscard]] QNetworkReply *notifications();
+    QCoro::AsyncGenerator<std::expected<QJsonArray, QString>>
+    searchIssues(const QString &query, int per_page);
 
-    /// Requires no scopes (if public data is sufficient)
-    [[nodiscard]] QNetworkReply *searchUsers(const QString &query, int per_page, int page);
+    QCoro::AsyncGenerator<std::expected<QJsonArray, QString>>
+    searchUsers(const QString &query, int per_page);
 
-    /// Requires no scopes (if public data is sufficient)
-    [[nodiscard]] QNetworkReply *searchRepositories(const QString &query, int per_page, int page);
-
-    /// Requires no scopes (if public data is sufficient)
-    [[nodiscard]] QNetworkReply *searchIssues(const QString &query, int per_page, int page);
-
-    [[nodiscard]] QNetworkReply *getLinkData(const QString & url);
-
-    static std::expected<QJsonDocument, QString> parseJson(QNetworkReply &reply);
+    QCoro::AsyncGenerator<std::expected<QJsonArray, QString>>
+    searchRepositories(const QString &query, int per_page);
 
     albert::OAuth2 oauth;
-    albert::detail::RateLimiter rate_limiter;
 
 private:
+    QNetworkRequest makeRequest(const QString &path, const QUrlQuery &query) const;
 
-    QNetworkRequest request(const QString &, const QUrlQuery &);
+    using RequestFn = QNetworkRequest (API::*)(const QString &, int, int) const;
+    QCoro::AsyncGenerator<std::expected<QJsonArray, QString>>
+    searchGenerator(RequestFn req_fn, QString query, int per_page);
+
+    QNetworkRequest userRequest() const;
+    QNetworkRequest searchUsersRequest(const QString &query, int per_page, int page) const;
+    QNetworkRequest searchIssuesRequest(const QString &query, int per_page, int page) const;
+    QNetworkRequest searchRepositoriesRequest(const QString &query, int per_page, int page) const;
+
+    QNetworkReply *get(QNetworkRequest request);
+
+    albert::detail::RateLimiter rate_limiter;
+
 
 };
