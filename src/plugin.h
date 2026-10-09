@@ -2,11 +2,13 @@
 
 #pragma once
 #include "api.h"
+#include "savedsearch.h"
 #include <albert/extensionplugin.h>
 #include <albert/oauth.h>
 #include <albert/globalqueryhandler.h>
 #include <albert/urlhandler.h>
 #include <memory>
+#include <mutex>
 #include <vector>
 
 class GithubSearchHandler;
@@ -30,11 +32,17 @@ public:
     void handle(const QUrl &) override;
     std::vector<albert::RankItem> rankItems(albert::QueryContext &) override;
 
+    std::vector<SavedSearch> savedSearches() const;
+    void setSavedSearches(const std::vector<SavedSearch> &);
+
+private:
+
+    void writeSecrets();
     void writeSavedSearches();
     void readSavedSearches();
-    void writeSecrets();
 
     API api;
     std::vector<std::unique_ptr<GithubSearchHandler>> search_handlers_;
-
+    mutable std::mutex saved_searches_mutex_;
+    std::vector<SavedSearch> saved_searches_;
 };

@@ -27,6 +27,7 @@ ALBERT_LOGGING_CATEGORY("github")
 using namespace Qt::StringLiterals;
 using namespace albert;
 using namespace std;
+using enum SavedSearch::Type;
 
 namespace
 {
@@ -37,9 +38,11 @@ static const auto ck_saved_searches = "saved_searches"_L1;
 
 Plugin::Plugin()
 {
-    search_handlers_.emplace_back(make_unique<UserSearchHandler>(api));
-    search_handlers_.emplace_back(make_unique<RepoSearchHandler>(api));
+    // The handler order is the ordinal order of SavedSearch::Type.
     search_handlers_.emplace_back(make_unique<IssueSearchHandler>(api));
+    search_handlers_.emplace_back(make_unique<RepoSearchHandler>(api));
+    search_handlers_.emplace_back(make_unique<UserSearchHandler>(api));
+
 }
 
 Plugin::~Plugin() = default;
@@ -48,9 +51,6 @@ void Plugin::initialize()
 {
     QtConcurrent::run([this] {
         readSavedSearches();
-        for (const auto &handler : search_handlers_)
-            connect(handler.get(), &GithubSearchHandler::savedSearchesChanged,
-                    this, &Plugin::writeSavedSearches);
     })
     .then(this, [this] {
         auto *job = new QKeychain::ReadPasswordJob(keychain_service, this);  // Deletes itself
@@ -96,20 +96,44 @@ void Plugin::initialize()
     });
 }
 
+
+vector<SavedSearch> Plugin::savedSearches() const
+{
+    lock_guard lock(saved_searches_mutex_);
+    return saved_searches_;
+}
+
+void Plugin::setSavedSearches(const vector<SavedSearch> &saved_searches)
+{
+    {
+        lock_guard lock(saved_searches_mutex_);
+        if (saved_searches == saved_searches_)
+            return;
+        saved_searches_ = saved_searches;
+    }
+    writeSavedSearches();
+}
+
 void Plugin::writeSavedSearches()
 {
     auto s = settings();
     s->beginGroup(ck_saved_searches);
-    for (const auto &handler : search_handlers_)
+    const auto searches = savedSearches();
+    for (size_t type_index = 0; type_index < search_handlers_.size(); ++type_index)
     {
-        const auto saved_searches = handler->savedSearches();
+        vector<SavedSearch> saved_searches;
+        for (const auto &saved : searches)
+            if (static_cast<size_t>(saved.type) == type_index)
+                saved_searches.push_back(saved);
 
-        s->beginWriteArray(handler->id().section(u'.', 1));  // drop "github."
-        for (size_t i = 0; i < saved_searches.size(); ++i)
+        s->beginWriteArray(search_handlers_[type_index]->id().section(u'.', 1));  // drop "github."
+        for (size_t search_index = 0; search_index < saved_searches.size(); ++search_index)
         {
-            s->setArrayIndex(i);
-            s->setValue("title", saved_searches.at(i).first),
-                s->setValue("query", saved_searches.at(i).second);
+            s->setArrayIndex(search_index);
+            s->setValue("title", saved_searches.at(search_index).title);
+            s->setValue("query", saved_searches.at(search_index).query);
+            s->setValue("cache_limit", saved_searches.at(search_index).cache_limit);
+            s->setValue("cache_interval", saved_searches.at(search_index).cache_interval);
         }
         s->endArray();
     }
@@ -117,31 +141,48 @@ void Plugin::writeSavedSearches()
 
 void Plugin::readSavedSearches()
 {
+    vector<SavedSearch> saved_searches;
     if (auto s = settings();
         s->childGroups().contains(ck_saved_searches))
     {
         s->beginGroup(ck_saved_searches);
-        for (const auto &handler : search_handlers_)
+        for (size_t type_index = 0; type_index < search_handlers_.size(); ++type_index)
         {
-            vector<pair<QString, QString>> saved_searches;
-
-            auto size = s->beginReadArray(handler->id().section(u'.', 1)); // drop "github."
-            for (int i = 0; i < size; ++i)
+            auto size = s->beginReadArray(search_handlers_[type_index]->id().section(u'.', 1)); // drop "github."
+            for (int search_index = 0; search_index < size; ++search_index)
             {
-                s->setArrayIndex(i);
-                saved_searches.emplace_back(s->value("title").toString(),
-                                            s->value("query").toString());
+                s->setArrayIndex(search_index);
+                saved_searches.push_back({static_cast<SavedSearch::Type>(type_index),
+                                          s->value("title").toString(),
+                                          s->value("query").toString(),
+                                          s->value("cache_limit", 0).toUInt(),
+                                          s->value("cache_interval", 0).toUInt()});
             }
             s->endArray();
-
-            handler->setSavedSearches(saved_searches);
         }
+        s->endGroup();
     }
     else
     {
-        for (const auto &handler : search_handlers_)
-            handler->setSavedSearches(handler->defaultSearches());
+        saved_searches = {
+            {Issues, tr("Assigned issues"), u"is:open is:issue assignee:@me"_s},
+            {Issues, tr("Created issues"), u"is:open is:issue author:@me"_s},
+            {Issues, tr("Albert issues"), u"is:open is:issue org:albertlauncher"_s},
+            {Issues, tr("Assigned pull requests"), u"is:open is:pr assignee:@me"_s},
+            {Issues, tr("Created pull requests"), u"is:open is:pr author:@me"_s},
+            {Issues, tr("Albert pull requests"), u"is:open is:pr org:albertlauncher"_s},
+            {Issues, tr("Review requests"), u"is:open is:pr review-requested:@me"_s},
+            {Issues, tr("Mentions"), u"mentions:@me"_s},
+            {Issues, tr("Recent activity"), u"involves:@me"_s},
+            {Repositories, tr("My repositories"), u"sort:updated-desc fork:true user:@me"_s},
+            {Repositories, tr("Albert repositories"),
+             u"sort:updated-desc fork:true archived:false org:albertlauncher"_s},
+            {Repositories, tr("Archived Albert repositories"),
+             u"sort:updated-desc fork:true archived:true org:albertlauncher"_s}
+        };
     }
+    lock_guard lock(saved_searches_mutex_);
+    saved_searches_ = ::move(saved_searches);
 }
 
 void Plugin::writeSecrets()
@@ -189,11 +230,16 @@ vector<RankItem> Plugin::rankItems(QueryContext &ctx)
 {
     vector<RankItem> r;
     Matcher matcher(ctx);
-    for (const auto &handler : search_handlers_)
-        for (const auto &[t, q] : handler->savedSearches())
-            if (auto m = matcher.match(t); m)
+    for (const auto &saved : savedSearches())
+    {
+        const auto handler_index = static_cast<size_t>(saved.type);
+        if (handler_index >= search_handlers_.size())
+            continue;
+        const auto &handler = search_handlers_[handler_index];
+
+        if (auto m = matcher.match(saved.title); m)
             {
-                auto _q = handler->trigger() + q;
+                auto _q = handler->trigger() + saved.query;
 
                 vector<Action> actions;
 
@@ -204,108 +250,14 @@ vector<RankItem> Plugin::rankItems(QueryContext &ctx)
                     false);
 
                 actions.emplace_back(u"github"_s, Plugin::tr("Show on GitHub"), [=] {
-                    openUrl(u"https://github.com/search?q="_s + percentEncoded(q));
+                    openUrl(u"https://github.com/search?q="_s + percentEncoded(saved.query));
                 });
 
-                r.emplace_back(StandardItem::make(t, t, ::move(_q),
+                r.emplace_back(StandardItem::make(saved.title, saved.title, ::move(_q),
                                                   []{ return Icon::image(u":github"_s); },
                                                   ::move(actions)),
                                m);
-            }
+        }
+    }
     return r;
 }
-
-// void Plugin::readSavedSearches()
-// {
-    // if (QFile file(savedSearchesFilePath());
-    //     !file.exists())
-    //     return;
-
-    // else if (!file.open(QIODevice::ReadOnly))
-    //     WARN << "Failed to read saved searches:" << file.errorString();
-
-    // else
-    // {
-    //     QJsonParseError error;
-    //     if (const auto doc = QJsonDocument::fromJson(file.readAll(), &error);
-    //         error.error != QJsonParseError::NoError)
-    //         WARN << "Failed to parse JSON (saved searches):" << error.errorString();
-
-    //     else
-    //     {
-    //         const auto root_obj = doc.object();
-
-    //         for (auto handler : initializer_list<GithubSearchHandler*> {&user_search_handler,
-    //                                                                     &repo_search_handler,
-    //                                                                     &issue_search_handler})
-    //         {
-    //             std::flat_map<QString, QString> saved_searches;
-
-    //             const auto cat_object = root_obj[handler->id().section(u'.', 1)].toObject();
-    //             for (auto it = cat_object.begin(); it != cat_object.end(); ++it)
-    //                 saved_searches.emplace(it.key(), it.value().toString());
-
-    //             handler->setSavedSearches(std::move(saved_searches));
-    //         }
-    //     }
-    // }
-// }
-
-// void Plugin::writeSavedSearches()
-// {
-    // QJsonObject saved_searches;
-    // for (const auto handler : initializer_list<GithubSearchHandler*>{&user_search_handler,
-    //                                                                   &repo_search_handler,
-    //                                                                   &issue_search_handler})
-    // {
-    //     QJsonObject searches;
-    //     for (const auto &[title, query] : handler->savedSearches())
-    //         searches[title] = query;
-
-    //     saved_searches[handler->id().section(u'.', 1)] = searches;  // drop "github."
-    // }
-
-    // if (!QDir(savedSearchesFilePath().parent_path()).mkpath(u".."_s))
-    //     WARN << "Failed to create directory:" << savedSearchesFilePath().parent_path();
-
-    // else if (QFile file(savedSearchesFilePath());
-    //          !file.open(QIODevice::WriteOnly))
-    //     WARN << "Failed to write saved searches:" << file.errorString();
-
-    // else if (file.write(QJsonDocument(saved_searches).toJson()) == -1)
-    //     WARN << "Failed to write saved searches:" << file.errorString();
-
-    // else
-    //     DEBG << "Sucessfully wrote saved searches to" << file.fileName();
-// }
-
-
-// void Plugin::restoreDefaultSavedSearches()
-// {
-//     issue_search_handler.setSavedSearches({
-//         {Plugin::tr("Assigned issues"),        u"is:open is:issue assignee:@me"_s},
-//         {Plugin::tr("Created issues"),         u"is:open is:issue author:@me"_s},
-//         {Plugin::tr("Assigned pull requests"), u"is:open is:pr assignee:@me"_s},
-//         {Plugin::tr("Created pull requests"),  u"is:open is:pr author:@me"_s},
-//         {Plugin::tr("Review requests"),        u"is:open is:pr review-requested:@me"_s},
-//         {Plugin::tr("Mentions"),               u"mentions:@me"_s},
-//         {Plugin::tr("Recent activity"),        u"involves:@me"_s}
-//     });
-
-//     repo_search_handler.setSavedSearches({
-//         {
-//             Plugin::tr("My repositories"),
-//             u"sort:updated-desc fork:true user:@me"_s
-//         },
-//         {
-//             Plugin::tr("Albert repositories"),
-//             u"sort:updated-desc fork:true archived:false org:albertlauncher"_s
-//         },
-//         {
-//             Plugin::tr("Archived Albert repositories"),
-//             u"sort:updated-desc fork:true archived:true org:albertlauncher"_s
-//         }
-//     });
-
-//     writeSavedSearches();
-// }
