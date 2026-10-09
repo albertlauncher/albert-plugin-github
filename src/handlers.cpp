@@ -68,26 +68,6 @@ void GithubSearchHandler::setTrigger(const QString &t)
     trigger_ = t;
 }
 
-vector<pair<QString, QString>> GithubSearchHandler::savedSearches() const
-{
-    lock_guard lock(mtx);
-    return saved_searches_;
-}
-
-void GithubSearchHandler::setSavedSearches(const vector<pair<QString, QString>> &saved_searches)
-{
-    bool notify = false;  // avoid holding lock on emit
-
-    if (lock_guard lock(mtx);
-        saved_searches != saved_searches_)
-    {
-        saved_searches_ = saved_searches;
-        notify = true;
-    }
-    if (notify)
-        emit savedSearchesChanged();
-}
-
 //--------------------------------------------------------------------------------------------------
 
 UserSearchHandler::UserSearchHandler(API &api):
@@ -97,8 +77,6 @@ UserSearchHandler::UserSearchHandler(API &api):
                         u"ghu"_s,
                         api)
 {}
-
-vector<pair<QString, QString>> UserSearchHandler::defaultSearches() const { return {}; }
 
 AsyncItemGenerator UserSearchHandler::items(QueryContext &ctx)
 {
@@ -176,24 +154,6 @@ AsyncItemGenerator RepoSearchHandler::items(albert::QueryContext &ctx)
     }
 }
 
-vector<pair<QString, QString>> RepoSearchHandler::defaultSearches() const
-{
-    return {
-        {
-            Plugin::tr("My repositories"),
-            u"sort:updated-desc fork:true user:@me"_s
-        },
-        {
-            Plugin::tr("Albert repositories"),
-            u"sort:updated-desc fork:true archived:false org:albertlauncher"_s
-        },
-        {
-            Plugin::tr("Archived Albert repositories"),
-            u"sort:updated-desc fork:true archived:true org:albertlauncher"_s
-        }
-    };
-}
-
 //--------------------------------------------------------------------------------------------------
 
 IssueSearchHandler::IssueSearchHandler(API &api):
@@ -227,19 +187,4 @@ AsyncItemGenerator IssueSearchHandler::items(albert::QueryContext &ctx)
             co_return;
         }
     }
-}
-
-vector<pair<QString, QString>> IssueSearchHandler::defaultSearches() const
-{
-    return {
-        {Plugin::tr("Assigned issues"),        u"is:open is:issue assignee:@me"_s},
-        {Plugin::tr("Created issues"),         u"is:open is:issue author:@me"_s},
-        {Plugin::tr("Albert issues"),          u"is:open is:issue org:albertlauncher"_s},
-        {Plugin::tr("Assigned pull requests"), u"is:open is:pr assignee:@me"_s},
-        {Plugin::tr("Created pull requests"),  u"is:open is:pr author:@me"_s},
-        {Plugin::tr("Albert pull requests"),   u"is:open is:pr org:albertlauncher"_s},
-        {Plugin::tr("Review requests"),        u"is:open is:pr review-requested:@me"_s},
-        {Plugin::tr("Mentions"),               u"mentions:@me"_s},
-        {Plugin::tr("Recent activity"),        u"involves:@me"_s}
-    };
 }

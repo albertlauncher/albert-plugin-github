@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>310</width>
+    <width>314</width>
     <height>341</height>
    </rect>
   </property>
@@ -26,33 +26,59 @@
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_3">
       <item>
-       <widget class="QLabel" name="label_seach_info">
-        <property name="text">
-         <string/>
-        </property>
-        <property name="openExternalLinks">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QTreeView" name="treeView">
-        <property name="alternatingRowColors">
-         <bool>true</bool>
-        </property>
-        <property name="indentation">
-         <number>10</number>
-        </property>
-        <property name="rootIsDecorated">
-         <bool>false</bool>
-        </property>
-        <property name="itemsExpandable">
-         <bool>false</bool>
-        </property>
-        <property name="expandsOnDoubleClick">
-         <bool>false</bool>
-        </property>
-       </widget>
+       <layout class="QHBoxLayout" name="savedSearchesLayout">
+        <item>
+         <widget class="QListWidget" name="savedSearchesList"/>
+        </item>
+        <item>
+         <layout class="QVBoxLayout" name="savedSearchButtonsLayout">
+          <item>
+           <widget class="QPushButton" name="addSearchButton">
+            <property name="text">
+             <string>Add</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="editSearchButton">
+            <property name="text">
+             <string>Edit</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="removeSearchButton">
+            <property name="text">
+             <string>Remove</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="label_seach_info">
+            <property name="text">
+             <string/>
+            </property>
+            <property name="openExternalLinks">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="searchButtonsSpacer">
+            <property name="orientation">
+             <enum>Qt::Orientation::Vertical</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>0</width>
+              <height>0</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </item>
+       </layout>
       </item>
      </layout>
     </widget>

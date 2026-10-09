@@ -4,11 +4,7 @@
 #include <QObject>
 #include <albert/asyncgeneratorqueryhandler.h>
 #include <mutex>
-class Plugin;
-class QJsonArray;
-class QNetworkReply;
 class API;
-namespace albert { class Item; }
 
 class GithubSearchHandler : public QObject, public albert::AsyncGeneratorQueryHandler
 {
@@ -29,11 +25,6 @@ public:
 
     QString trigger();  // thread-safe
 
-    std::vector<std::pair<QString, QString>> savedSearches() const;
-    void setSavedSearches(const std::vector<std::pair<QString, QString>>&);
-
-    virtual std::vector<std::pair<QString, QString>> defaultSearches() const = 0;
-
 protected:
     const QString id_;
     const QString name_;
@@ -44,14 +35,6 @@ protected:
     // Things accessesd by main and query threads
     mutable std::mutex mtx;
     QString trigger_;
-    std::vector<std::pair<QString, QString>> saved_searches_;
-
-signals:
-
-    void savedSearchesChanged();
-
-    friend class GithubQueryExecution;
-
 };
 
 
@@ -60,7 +43,6 @@ class UserSearchHandler : public GithubSearchHandler
 public:
     UserSearchHandler(API&);
     albert::AsyncItemGenerator items(albert::QueryContext&) override;
-    std::vector<std::pair<QString, QString>> defaultSearches() const override;
 };
 
 
@@ -69,7 +51,6 @@ class RepoSearchHandler : public GithubSearchHandler
 public:
     RepoSearchHandler(API&);
     albert::AsyncItemGenerator items(albert::QueryContext&) override;
-    std::vector<std::pair<QString, QString>> defaultSearches() const override;
 };
 
 
@@ -78,5 +59,4 @@ class IssueSearchHandler : public GithubSearchHandler
 public:
     IssueSearchHandler(API&);
     albert::AsyncItemGenerator items(albert::QueryContext&) override;
-    std::vector<std::pair<QString, QString>> defaultSearches() const override;
 };
