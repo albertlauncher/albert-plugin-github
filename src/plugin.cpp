@@ -2,8 +2,10 @@
 
 #include "configwidget.h"
 #include "handlers.h"
+#include "items.h"
 #include "plugin.h"
 #include <QCoreApplication>
+#include <QCoroAsyncGenerator>
 #include <QCoroTask>
 #include <QDir>
 #include <QFile>
@@ -13,6 +15,7 @@
 #include <QNetworkReply>
 #include <QSettings>
 #include <QThread>
+#include <QTimer>
 #include <QtConcurrentRun>
 #include <albert/app.h>
 #include <albert/icon.h>
@@ -36,12 +39,18 @@ static const auto keychain_key = u"secrets"_s;
 static const auto ck_saved_searches = "saved_searches"_L1;
 }
 
-Plugin::Plugin()
+Plugin::Plugin():
+    search_cache_(api, saved_searches_, cacheLocation())
 {
     // The handler order is the ordinal order of SavedSearch::Type.
     search_handlers_.emplace_back(make_unique<IssueSearchHandler>(api));
     search_handlers_.emplace_back(make_unique<RepoSearchHandler>(api));
     search_handlers_.emplace_back(make_unique<UserSearchHandler>(api));
+
+    auto *cache_timer = new QTimer(this);
+    cache_timer->start(60 * 60 * 1000);
+    connect(cache_timer, &QTimer::timeout,
+            this, [this] { search_cache_.updateCaches(); });
 
 }
 
@@ -75,6 +84,7 @@ void Plugin::initialize()
             connect(&api.oauth, &OAuth2::tokensChanged,       this, &Plugin::writeSecrets);
 
             emit initialized();
+            search_cache_.updateCaches();
         });
 
         job->start();
@@ -112,6 +122,7 @@ void Plugin::setSavedSearches(const vector<SavedSearch> &saved_searches)
         saved_searches_ = saved_searches;
     }
     writeSavedSearches();
+    search_cache_.updateCaches();
 }
 
 void Plugin::writeSavedSearches()
@@ -134,6 +145,7 @@ void Plugin::writeSavedSearches()
             s->setValue("query", saved_searches.at(search_index).query);
             s->setValue("cache_limit", saved_searches.at(search_index).cache_limit);
             s->setValue("cache_interval", saved_searches.at(search_index).cache_interval);
+            s->setValue("cache_enabled", saved_searches.at(search_index).cache_enabled);
         }
         s->endArray();
     }
@@ -155,8 +167,9 @@ void Plugin::readSavedSearches()
                 saved_searches.push_back({static_cast<SavedSearch::Type>(type_index),
                                           s->value("title").toString(),
                                           s->value("query").toString(),
-                                          s->value("cache_limit", 0).toUInt(),
-                                          s->value("cache_interval", 0).toUInt()});
+                                          s->value("cache_limit", 100).toUInt(),
+                                          s->value("cache_interval", 0).toUInt(),
+                                          s->value("cache_enabled", false).toBool()});
             }
             s->endArray();
         }
@@ -210,6 +223,7 @@ vector<Extension*> Plugin::extensions()
     vector<Extension*> extensions{this};
     for (const auto &handler : search_handlers_)
         extensions.push_back(handler.get());
+    extensions.push_back(&search_cache_);
     return extensions;
 }
 
@@ -252,6 +266,12 @@ vector<RankItem> Plugin::rankItems(QueryContext &ctx)
                 actions.emplace_back(u"github"_s, Plugin::tr("Show on GitHub"), [=] {
                     openUrl(u"https://github.com/search?q="_s + percentEncoded(saved.query));
                 });
+
+                // if (saved.cache_limit > 0)
+                //     actions.emplace_back(u"refresh-cache"_s, Plugin::tr("Refresh cache"),
+                //                          [this, saved] {
+                //                              refreshCache(saved).then([] {});
+                //                          });
 
                 r.emplace_back(StandardItem::make(saved.title, saved.title, ::move(_q),
                                                   []{ return Icon::image(u":github"_s); },

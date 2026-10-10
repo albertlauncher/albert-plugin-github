@@ -45,13 +45,14 @@ optional<SavedSearch> editSearch(QWidget *parent, optional<SavedSearch> current 
     query_edit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
     auto *cache_enabled = new QCheckBox(ConfigWidget::tr("Cache results"), &dialog);
-    cache_enabled->setChecked(current && current->cache_limit > 0);
+    cache_enabled->setChecked(current && current->cache_enabled);
 
     auto *cache_limit = new QSpinBox(&dialog);
-    cache_limit->setRange(1, numeric_limits<int>::max());
+    cache_limit->setRange(0, numeric_limits<int>::max());
+    cache_limit->setSpecialValueText(ConfigWidget::tr("All items"));
     cache_limit->setSingleStep(100);
     cache_limit->setSuffix(ConfigWidget::tr(" items"));
-    cache_limit->setValue(current && current->cache_limit > 0 ? current->cache_limit : 100);
+    cache_limit->setValue(current ? current->cache_limit : 100);
 
     auto *cache_interval = new QSpinBox(&dialog);
     cache_interval->setRange(0, numeric_limits<int>::max());
@@ -87,8 +88,9 @@ optional<SavedSearch> editSearch(QWidget *parent, optional<SavedSearch> current 
     return SavedSearch{static_cast<SavedSearch::Type>(combobox_type->currentIndex()),
                        title_edit->text().trimmed(),
                        query_edit->text(),
-                       cache_enabled->isChecked() ? (uint)cache_limit->value() : 0,
-                       (uint)cache_interval->value()};
+                       (uint)cache_limit->value(),
+                       (uint)cache_interval->value(),
+                       cache_enabled->isChecked()};
 }
 }
 
