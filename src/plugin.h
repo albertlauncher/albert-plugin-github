@@ -3,6 +3,7 @@
 #pragma once
 #include "api.h"
 #include "savedsearch.h"
+#include "searchcache.h"
 #include <albert/extensionplugin.h>
 #include <albert/oauth.h>
 #include <albert/globalqueryhandler.h>
@@ -45,4 +46,5 @@ private:
     std::vector<std::unique_ptr<GithubSearchHandler>> search_handlers_;
     mutable std::mutex saved_searches_mutex_;
     std::vector<SavedSearch> saved_searches_;
+    SearchCache search_cache_;
 };
