@@ -45,6 +45,7 @@ class UserItem : public GitHubItem
 {
 public:
     using GitHubItem::GitHubItem;
+    QString id() const override;
     static std::shared_ptr<UserItem> fromJson(const QJsonObject &);
 };
 
@@ -53,6 +54,7 @@ class RepositoryItem : public GitHubItem
 {
 public:
     using GitHubItem::GitHubItem;
+    QString id() const override;
     static std::shared_ptr<RepositoryItem> fromJson(const QJsonObject &);
     std::vector<albert::Action> actions() const override;
 private:
@@ -66,5 +68,6 @@ class IssueItem : public GitHubItem
 {
 public:
     using GitHubItem::GitHubItem;
+    QString id() const override;
     static std::shared_ptr<IssueItem> fromJson(const QJsonObject &);
 };

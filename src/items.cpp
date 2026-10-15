@@ -78,6 +78,8 @@ vector<Action> GitHubItem::actions() const
 
 // -------------------------------------------------------------------------------------------------
 
+QString UserItem::id() const { return u"u:"_s + id_; }
+
 shared_ptr<UserItem> UserItem::fromJson(const QJsonObject &o)
 {
     const auto id = o["login"_L1].toString();
@@ -91,6 +93,8 @@ shared_ptr<UserItem> UserItem::fromJson(const QJsonObject &o)
 }
 
 // -------------------------------------------------------------------------------------------------
+
+QString RepositoryItem::id() const { return u"r:"_s + id_; }
 
 static QString makeRepositoryDescription(const QJsonObject &o)
 {
@@ -156,6 +160,8 @@ vector<Action> RepositoryItem::actions() const
 
 // -------------------------------------------------------------------------------------------------
 
+QString IssueItem::id() const { return u"i:"_s + id_; }
+
 static QString makeIssueDescription(const QJsonObject &o, const QString id)
 {
     if (const auto reactions = o["reactions"_L1];
@@ -197,4 +203,3 @@ shared_ptr<IssueItem> IssueItem::fromJson(const QJsonObject &o)
         o["html_url"_L1].toString(),
         o["user"_L1]["avatar_url"_L1].toString());
 }
-

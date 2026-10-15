@@ -273,7 +273,7 @@ vector<RankItem> Plugin::rankItems(QueryContext &ctx)
                 //                              refreshCache(saved).then([] {});
                 //                          });
 
-                r.emplace_back(StandardItem::make(saved.title, saved.title, ::move(_q),
+                r.emplace_back(StandardItem::make(u"ss:"_s + saved.title, saved.title, ::move(_q),
                                                   []{ return Icon::image(u":github"_s); },
                                                   ::move(actions)),
                                m);
