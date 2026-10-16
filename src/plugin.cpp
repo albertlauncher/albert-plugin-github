@@ -263,9 +263,22 @@ vector<RankItem> Plugin::rankItems(QueryContext &ctx)
                     [=] { app().show(_q + QChar::Space); },
                     false);
 
-                actions.emplace_back(u"github"_s, Plugin::tr("Show on GitHub"), [=] {
-                    openUrl(u"https://github.com/search?q="_s + percentEncoded(saved.query));
-                });
+                auto url = u"https://github.com/"_s;
+                switch (saved.type)
+                {
+                case Issues:
+                    url += u"issues/search?q="_s;
+                    break;
+                case Repositories:
+                    url += u"repos?q="_s;
+                    break;
+                default:
+                    url += u"search?q="_s;
+                    break;
+                }
+
+                actions.emplace_back(u"github"_s, Plugin::tr("Show on GitHub"),
+                                     [=] { openUrl(url + percentEncoded(saved.query)); });
 
                 // if (saved.cache_limit > 0)
                 //     actions.emplace_back(u"refresh-cache"_s, Plugin::tr("Refresh cache"),
