@@ -187,11 +187,11 @@ void Plugin::readSavedSearches()
             {Issues, tr("Review requests"), u"is:open is:pr review-requested:@me"_s},
             {Issues, tr("Mentions"), u"mentions:@me"_s},
             {Issues, tr("Recent activity"), u"involves:@me"_s},
-            {Repositories, tr("My repositories"), u"sort:updated-desc fork:true user:@me"_s},
+            {Repositories, tr("My repositories"), u"sort:updated user:@me"_s},
             {Repositories, tr("Albert repositories"),
-             u"sort:updated-desc fork:true archived:false org:albertlauncher"_s},
+             u"sort:updated archived:false org:albertlauncher"_s},
             {Repositories, tr("Archived Albert repositories"),
-             u"sort:updated-desc fork:true archived:true org:albertlauncher"_s}
+             u"sort:updated archived:true org:albertlauncher"_s}
         };
     }
     lock_guard lock(saved_searches_mutex_);
