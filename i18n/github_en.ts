@@ -8,11 +8,63 @@
         <translation></translation>
     </message>
     <message>
-        <source>See the GitHub [user](%1), [repo](%2) and [issue](%3) search documentation.</source>
+        <source>Add</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>Edit</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>Remove</source>
         <translation></translation>
     </message>
     <message>
         <source>GitHub OAuth app credentials (See README)</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>Edit saved search</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>Add saved search</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>Issue</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>Repository</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>User</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>Cache results</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>All items</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source> items</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source> hours</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>Once</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>Search type</source>
         <translation></translation>
     </message>
     <message>
@@ -24,7 +76,23 @@
         <translation></translation>
     </message>
     <message>
-        <source>New search</source>
+        <source>Cache limit</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>Cache interval</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>See docs for [user](%1), [repo](%2) and [issue](%3) search.</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>Remove saved search</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>Remove the saved search &quot;%1&quot;?</source>
         <translation></translation>
     </message>
 </context>
@@ -131,6 +199,17 @@
     </message>
     <message>
         <source>Show on GitHub</source>
+        <translation></translation>
+    </message>
+</context>
+<context>
+    <name>SearchCache</name>
+    <message>
+        <source>GitHub search cache</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>Fast search on cached GitHub saved searches</source>
         <translation></translation>
     </message>
 </context>

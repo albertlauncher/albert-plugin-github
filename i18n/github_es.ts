@@ -8,12 +8,68 @@
         <translation>Búsquedas guardadas</translation>
     </message>
     <message>
+        <source>Add</source>
+        <translation>Añadir</translation>
+    </message>
+    <message>
+        <source>Edit</source>
+        <translation>Editar</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Eliminar</translation>
+    </message>
+    <message>
         <source>See the GitHub [user](%1), [repo](%2) and [issue](%3) search documentation.</source>
-        <translation>Consulta la documentación de búsqueda de GitHub [usuario](%1), [repositorio](%2) y [issue](%3).</translation>
+        <translation type="vanished">Consulta la documentación de búsqueda de GitHub [usuario](%1), [repositorio](%2) y [issue](%3).</translation>
     </message>
     <message>
         <source>GitHub OAuth app credentials (See README)</source>
         <translation>Credenciales de la app OAuth de GitHub (Ver README)</translation>
+    </message>
+    <message>
+        <source>Edit saved search</source>
+        <translation>Editar búsqueda guardada</translation>
+    </message>
+    <message>
+        <source>Add saved search</source>
+        <translation>Añadir búsqueda guardada</translation>
+    </message>
+    <message>
+        <source>Issue</source>
+        <translation>Issue</translation>
+    </message>
+    <message>
+        <source>Repository</source>
+        <translation>Repositorio</translation>
+    </message>
+    <message>
+        <source>User</source>
+        <translation>Usuario</translation>
+    </message>
+    <message>
+        <source>Cache results</source>
+        <translation>Guardar resultados en caché</translation>
+    </message>
+    <message>
+        <source>All items</source>
+        <translation>Todos los elementos</translation>
+    </message>
+    <message>
+        <source> items</source>
+        <translation> elementos</translation>
+    </message>
+    <message>
+        <source> hours</source>
+        <translation> horas</translation>
+    </message>
+    <message>
+        <source>Once</source>
+        <translation>Una vez</translation>
+    </message>
+    <message>
+        <source>Search type</source>
+        <translation>Tipo de búsqueda</translation>
     </message>
     <message>
         <source>Title</source>
@@ -24,8 +80,28 @@
         <translation>Consulta</translation>
     </message>
     <message>
+        <source>Cache limit</source>
+        <translation>Límite de caché</translation>
+    </message>
+    <message>
+        <source>Cache interval</source>
+        <translation>Intervalo de caché</translation>
+    </message>
+    <message>
+        <source>See docs for [user](%1), [repo](%2) and [issue](%3) search.</source>
+        <translation>Consulta la documentación de búsqueda de [usuarios](%1), [repositorios](%2) e [issues](%3).</translation>
+    </message>
+    <message>
+        <source>Remove saved search</source>
+        <translation>Eliminar búsqueda guardada</translation>
+    </message>
+    <message>
+        <source>Remove the saved search &quot;%1&quot;?</source>
+        <translation>¿Eliminar la búsqueda guardada &quot;%1&quot;?</translation>
+    </message>
+    <message>
         <source>New search</source>
-        <translation>Nueva búsqueda</translation>
+        <translation type="vanished">Nueva búsqueda</translation>
     </message>
 </context>
 <context>
@@ -132,6 +208,17 @@
     <message>
         <source>Show on GitHub</source>
         <translation>Mostrar en GitHub</translation>
+    </message>
+</context>
+<context>
+    <name>SearchCache</name>
+    <message>
+        <source>GitHub search cache</source>
+        <translation>Caché de búsqueda de GitHub</translation>
+    </message>
+    <message>
+        <source>Fast search on cached GitHub saved searches</source>
+        <translation>Búsqueda rápida en búsquedas guardadas de GitHub almacenadas en caché</translation>
     </message>
 </context>
 </TS>

@@ -8,12 +8,68 @@
         <translation>保存された検索</translation>
     </message>
     <message>
+        <source>Add</source>
+        <translation>追加</translation>
+    </message>
+    <message>
+        <source>Edit</source>
+        <translation>編集</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>削除</translation>
+    </message>
+    <message>
         <source>See the GitHub [user](%1), [repo](%2) and [issue](%3) search documentation.</source>
-        <translation>GitHub [ユーザー](%1)、[リポジトリ](%2)、[issue](%3) の検索ドキュメントをご覧ください。</translation>
+        <translation type="vanished">GitHub [ユーザー](%1)、[リポジトリ](%2)、[issue](%3) の検索ドキュメントをご覧ください。</translation>
     </message>
     <message>
         <source>GitHub OAuth app credentials (See README)</source>
         <translation>GitHub OAuthアプリの資格情報（READMEをご覧ください）</translation>
+    </message>
+    <message>
+        <source>Edit saved search</source>
+        <translation>保存した検索を編集</translation>
+    </message>
+    <message>
+        <source>Add saved search</source>
+        <translation>保存した検索を追加</translation>
+    </message>
+    <message>
+        <source>Issue</source>
+        <translation>Issue</translation>
+    </message>
+    <message>
+        <source>Repository</source>
+        <translation>リポジトリ</translation>
+    </message>
+    <message>
+        <source>User</source>
+        <translation>ユーザー</translation>
+    </message>
+    <message>
+        <source>Cache results</source>
+        <translation>結果をキャッシュ</translation>
+    </message>
+    <message>
+        <source>All items</source>
+        <translation>すべての項目</translation>
+    </message>
+    <message>
+        <source> items</source>
+        <translation> 件</translation>
+    </message>
+    <message>
+        <source> hours</source>
+        <translation> 時間</translation>
+    </message>
+    <message>
+        <source>Once</source>
+        <translation>1回</translation>
+    </message>
+    <message>
+        <source>Search type</source>
+        <translation>検索タイプ</translation>
     </message>
     <message>
         <source>Title</source>
@@ -24,8 +80,28 @@
         <translation>クエリ</translation>
     </message>
     <message>
+        <source>Cache limit</source>
+        <translation>キャッシュ上限</translation>
+    </message>
+    <message>
+        <source>Cache interval</source>
+        <translation>キャッシュ間隔</translation>
+    </message>
+    <message>
+        <source>See docs for [user](%1), [repo](%2) and [issue](%3) search.</source>
+        <translation>[ユーザー](%1)、[リポジトリ](%2)、[issue](%3) の検索ドキュメントをご覧ください。</translation>
+    </message>
+    <message>
+        <source>Remove saved search</source>
+        <translation>保存した検索を削除</translation>
+    </message>
+    <message>
+        <source>Remove the saved search &quot;%1&quot;?</source>
+        <translation>保存した検索「%1」を削除しますか？</translation>
+    </message>
+    <message>
         <source>New search</source>
-        <translation>新しい検索</translation>
+        <translation type="vanished">新しい検索</translation>
     </message>
 </context>
 <context>
@@ -132,6 +208,17 @@
     <message>
         <source>Show on GitHub</source>
         <translation>GitHubで表示</translation>
+    </message>
+</context>
+<context>
+    <name>SearchCache</name>
+    <message>
+        <source>GitHub search cache</source>
+        <translation>GitHub検索キャッシュ</translation>
+    </message>
+    <message>
+        <source>Fast search on cached GitHub saved searches</source>
+        <translation>キャッシュされたGitHub保存済み検索を高速検索</translation>
     </message>
 </context>
 </TS>

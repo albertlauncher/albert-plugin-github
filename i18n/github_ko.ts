@@ -8,12 +8,68 @@
         <translation>저장된 검색</translation>
     </message>
     <message>
+        <source>Add</source>
+        <translation>추가</translation>
+    </message>
+    <message>
+        <source>Edit</source>
+        <translation>편집</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>제거</translation>
+    </message>
+    <message>
         <source>See the GitHub [user](%1), [repo](%2) and [issue](%3) search documentation.</source>
-        <translation>GitHub [사용자](%1), [저장소](%2), [issue](%3) 검색 문서를 참조하세요.</translation>
+        <translation type="vanished">GitHub [사용자](%1), [저장소](%2), [issue](%3) 검색 문서를 참조하세요.</translation>
     </message>
     <message>
         <source>GitHub OAuth app credentials (See README)</source>
         <translation>GitHub OAuth 앱 자격 증명 (README 참조)</translation>
+    </message>
+    <message>
+        <source>Edit saved search</source>
+        <translation>저장된 검색 편집</translation>
+    </message>
+    <message>
+        <source>Add saved search</source>
+        <translation>저장된 검색 추가</translation>
+    </message>
+    <message>
+        <source>Issue</source>
+        <translation>Issue</translation>
+    </message>
+    <message>
+        <source>Repository</source>
+        <translation>저장소</translation>
+    </message>
+    <message>
+        <source>User</source>
+        <translation>사용자</translation>
+    </message>
+    <message>
+        <source>Cache results</source>
+        <translation>결과 캐시</translation>
+    </message>
+    <message>
+        <source>All items</source>
+        <translation>모든 항목</translation>
+    </message>
+    <message>
+        <source> items</source>
+        <translation>개 항목</translation>
+    </message>
+    <message>
+        <source> hours</source>
+        <translation>시간</translation>
+    </message>
+    <message>
+        <source>Once</source>
+        <translation>한 번</translation>
+    </message>
+    <message>
+        <source>Search type</source>
+        <translation>검색 유형</translation>
     </message>
     <message>
         <source>Title</source>
@@ -24,8 +80,28 @@
         <translation>쿼리</translation>
     </message>
     <message>
+        <source>Cache limit</source>
+        <translation>캐시 제한</translation>
+    </message>
+    <message>
+        <source>Cache interval</source>
+        <translation>캐시 간격</translation>
+    </message>
+    <message>
+        <source>See docs for [user](%1), [repo](%2) and [issue](%3) search.</source>
+        <translation>[사용자](%1), [저장소](%2), [issue](%3) 검색 문서를 참조하세요.</translation>
+    </message>
+    <message>
+        <source>Remove saved search</source>
+        <translation>저장된 검색 제거</translation>
+    </message>
+    <message>
+        <source>Remove the saved search &quot;%1&quot;?</source>
+        <translation>저장된 검색 &quot;%1&quot;을(를) 제거하시겠습니까?</translation>
+    </message>
+    <message>
         <source>New search</source>
-        <translation>새 검색</translation>
+        <translation type="vanished">새 검색</translation>
     </message>
 </context>
 <context>
@@ -132,6 +208,17 @@
     <message>
         <source>Show on GitHub</source>
         <translation>GitHub에서 보기</translation>
+    </message>
+</context>
+<context>
+    <name>SearchCache</name>
+    <message>
+        <source>GitHub search cache</source>
+        <translation>GitHub 검색 캐시</translation>
+    </message>
+    <message>
+        <source>Fast search on cached GitHub saved searches</source>
+        <translation>캐시된 GitHub 저장 검색을 빠르게 검색</translation>
     </message>
 </context>
 </TS>

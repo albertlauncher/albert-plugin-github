@@ -8,12 +8,68 @@
         <translation>Gespeicherte Suchanfragen</translation>
     </message>
     <message>
+        <source>Add</source>
+        <translation>Hinzufügen</translation>
+    </message>
+    <message>
+        <source>Edit</source>
+        <translation>Bearbeiten</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Entfernen</translation>
+    </message>
+    <message>
         <source>See the GitHub [user](%1), [repo](%2) and [issue](%3) search documentation.</source>
-        <translation>Siehe die GitHub-[Benutzer](%1)-, [Repository](%2)- und [Issue](%3)-Suchdokumentation.</translation>
+        <translation type="vanished">Siehe die GitHub-[Benutzer](%1)-, [Repository](%2)- und [Issue](%3)-Suchdokumentation.</translation>
     </message>
     <message>
         <source>GitHub OAuth app credentials (See README)</source>
         <translation>GitHub-OAuth-App-Zugangsdaten (siehe README)</translation>
+    </message>
+    <message>
+        <source>Edit saved search</source>
+        <translation>Gespeicherte Suche bearbeiten</translation>
+    </message>
+    <message>
+        <source>Add saved search</source>
+        <translation>Gespeicherte Suche hinzufügen</translation>
+    </message>
+    <message>
+        <source>Issue</source>
+        <translation>Issue</translation>
+    </message>
+    <message>
+        <source>Repository</source>
+        <translation>Repository</translation>
+    </message>
+    <message>
+        <source>User</source>
+        <translation>Benutzer</translation>
+    </message>
+    <message>
+        <source>Cache results</source>
+        <translation>Ergebnisse zwischenspeichern</translation>
+    </message>
+    <message>
+        <source>All items</source>
+        <translation>Alle Einträge</translation>
+    </message>
+    <message>
+        <source> items</source>
+        <translation> Einträge</translation>
+    </message>
+    <message>
+        <source> hours</source>
+        <translation> Stunden</translation>
+    </message>
+    <message>
+        <source>Once</source>
+        <translation>Einmal</translation>
+    </message>
+    <message>
+        <source>Search type</source>
+        <translation>Suchtyp</translation>
     </message>
     <message>
         <source>Title</source>
@@ -24,8 +80,28 @@
         <translation>Abfrage</translation>
     </message>
     <message>
+        <source>Cache limit</source>
+        <translation>Cache-Limit</translation>
+    </message>
+    <message>
+        <source>Cache interval</source>
+        <translation>Cache-Intervall</translation>
+    </message>
+    <message>
+        <source>See docs for [user](%1), [repo](%2) and [issue](%3) search.</source>
+        <translation>Siehe die Dokumentation zur Suche nach [Benutzern](%1), [Repositories](%2) und [Issues](%3).</translation>
+    </message>
+    <message>
+        <source>Remove saved search</source>
+        <translation>Gespeicherte Suche entfernen</translation>
+    </message>
+    <message>
+        <source>Remove the saved search &quot;%1&quot;?</source>
+        <translation>Gespeicherte Suche &quot;%1&quot; entfernen?</translation>
+    </message>
+    <message>
         <source>New search</source>
-        <translation>Neue Suche</translation>
+        <translation type="vanished">Neue Suche</translation>
     </message>
 </context>
 <context>
@@ -132,6 +208,17 @@
     <message>
         <source>Show on GitHub</source>
         <translation>Auf GitHub anzeigen</translation>
+    </message>
+</context>
+<context>
+    <name>SearchCache</name>
+    <message>
+        <source>GitHub search cache</source>
+        <translation>GitHub-Suchcache</translation>
+    </message>
+    <message>
+        <source>Fast search on cached GitHub saved searches</source>
+        <translation>Schnelle Suche in zwischengespeicherten GitHub-Suchanfragen</translation>
     </message>
 </context>
 </TS>
