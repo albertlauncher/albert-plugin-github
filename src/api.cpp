@@ -37,7 +37,7 @@ static expected<QJsonObject, QString> handleRestReply(QNetworkReply &reply)
         return unexpected(u"JSON parse error: %1"_s.arg(parse_error.errorString()));
 
     else if (!doc.isObject())
-        return unexpected(u"Unexpected JSON format: %1"_s.arg(doc.toJson()));
+        return unexpected(u"Unexpected JSON format: %1"_s.arg(QString::fromUtf8(doc.toJson())));
 
     else
         return doc.object();
